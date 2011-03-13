@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 enum RR_PIXEL_FORMAT {
         RR_NONE_FORMAT,
@@ -294,6 +295,31 @@ void rr_end_frame(void)
 {
 }
 
+struct rr_color {
+        uint8_t red;
+        uint8_t green;
+        uint8_t blue;
+        uint8_t alpha;
+};
+
+#define RR_BATCH_SIZE 4096
+cpVect rr_vertices[RR_BATCH_SIZE];
+unsigned int rr_vertex_count;
+cpVect rr_tex_coords[RR_BATCH_SIZE];
+unsigned int rr_tex_coords_count;
+struct rr_color rr_colors[RR_BATCH_SIZE];
+unsigned int rr_colors_count;
+
+void rr_init_batch(void) {
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+
+        glVertexPointer(2, GL_FLOAT, 0, rr_vertices);
+        glTexCoordPointer(2, GL_FLOAT, 0, rr_tex_coords);
+        glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -311,8 +337,6 @@ int main(int argc, char **argv)
 
         rr_running = true;
 
-        cpVect world_mouse;
-
         LOG_INFO("run!");
 
         while(rr_running) {
@@ -320,13 +344,6 @@ int main(int argc, char **argv)
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 rr_begin_scene();
-
-                world_mouse = rr_transform_vect(rr_screen_transform, rr_abs_mouse);
-
-                glBegin(GL_LINES);
-                glVertex2f(0.0f, 0.0f);
-                glVertex2f(world_mouse.x, world_mouse.y);
-                glEnd();
 
                 rr_end_scene();
                 rr_end_frame();
