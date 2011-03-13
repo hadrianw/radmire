@@ -116,14 +116,14 @@ void rr_set_base_horizontal(int width, int height)
 }
 
 int rr_base;
-typedef struct {
+struct rr_transform {
         cpVect col1;
         cpVect col2;
         cpVect pos;
-} rr_transform;
-const rr_transform rr_transform_identity = {{1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f}};
+};
+const struct rr_transform rr_transform_identity = {{1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f}};
 
-static inline cpVect rr_transform_vect( const rr_transform t, const cpVect v)
+static inline cpVect rr_transform_vect(const struct rr_transform t, const cpVect v)
 {       
 	float x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
 	float y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
@@ -131,7 +131,7 @@ static inline cpVect rr_transform_vect( const rr_transform t, const cpVect v)
 	return cpv(x, y);
 }
 
-rr_transform rr_screen_transform;
+struct rr_transform rr_screen_transform;
 float rr_width_factor = 0.0f;
 float rr_height_factor = 0.0f;
 
