@@ -4,11 +4,11 @@ EXCLUDE =
 
 # includes and libs
 INCS = `pkg-config --cflags sdl`
-LIBS = `pkg-config --libs sdl gl glu`
+LIBS = `pkg-config --libs sdl gl glu` -lchipmunk
 
 # flags
 CPPFLAGS = #-D
-CFLAGS   = -std=c99 -pedantic -Wall -Os ${INCS} ${CPPFLAGS} -MMD
+CFLAGS   = -std=c99 -pedantic -Os -Wall ${INCS} ${CPPFLAGS} -MMD
 LDFLAGS  = -s ${LIBS}
 
 # compiler and linker

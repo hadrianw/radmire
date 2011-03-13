@@ -6,7 +6,7 @@ all: $(TARGET)
 
 $(TARGET): $(SRCS:.c=.o)
 	@echo CC -o $@
-	@$(CC) -o $@ $< $(LDFLAGS)
+	@$(CC) -o $@ $+ $(LDFLAGS)
 
 -include $(SRCS:.c=.d)
 
