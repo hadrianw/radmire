@@ -304,20 +304,31 @@ struct rr_color {
 
 #define RR_BATCH_SIZE 4096
 cpVect rr_vertices[RR_BATCH_SIZE];
-unsigned int rr_vertex_count;
+unsigned int rr_vertex_count = 0;
 cpVect rr_tex_coords[RR_BATCH_SIZE];
-unsigned int rr_tex_coords_count;
+unsigned int rr_tex_coords_count = 0;
 struct rr_color rr_colors[RR_BATCH_SIZE];
-unsigned int rr_colors_count;
+unsigned int rr_colors_count = 0;
 
-void rr_init_batch(void) {
+unsigned int rr_batch_count = 0;
+
+void rr_batch_init(void)
+{
         glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
+        //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        //glEnableClientState(GL_COLOR_ARRAY);
 
+        //glTexCoordPointer(2, GL_FLOAT, 0, rr_tex_coords);
+        //glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
+}
+
+GLenum rr_polygon_mode = GL_QUADS;
+
+void rr_flush(void)
+{
         glVertexPointer(2, GL_FLOAT, 0, rr_vertices);
-        glTexCoordPointer(2, GL_FLOAT, 0, rr_tex_coords);
-        glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
+        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & (~3));
+        //rr_batch_count = 0;
 }
 
 
@@ -334,6 +345,13 @@ int main(int argc, char **argv)
                 rr_pressed_keys[i] = false;
         for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
                 rr_pressed_buttons[i] = false;
+        rr_batch_init();
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glShadeModel(GL_SMOOTH);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
 
         rr_running = true;
 
@@ -343,8 +361,19 @@ int main(int argc, char **argv)
                 rr_begin_frame();
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
+                if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
+                        rr_vertices[rr_batch_count] = rr_transform_vect(rr_screen_transform, rr_abs_mouse);
+                        ++rr_batch_count;
+                }
                 rr_begin_scene();
 
+                //glBegin(GL_QUADS);
+                //for(int i=0; i<rr_batch_count; ++i) {
+                        //glVertex2f(rr_vertices[i].x, rr_vertices[i].y);
+                //}
+                //glEnd();
+
+                rr_flush();
                 rr_end_scene();
                 rr_end_frame();
                 usleep(100000);
