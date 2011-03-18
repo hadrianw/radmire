@@ -326,13 +326,12 @@ GLenum rr_polygon_mode = GL_QUADS;
 
 void rr_flush(void)
 {
-        glVertexPointer(2, GL_FLOAT, 0, rr_vertices);
-        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & (~3));
+        glVertexPointer(2, GL_DOUBLE, 0, rr_vertices);
+        glDrawArrays(rr_polygon_mode, 0, rr_batch_count);
         //rr_batch_count = 0;
 }
 
-
-int main(int argc, char **argv)
+int rr_init(void)
 {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
                 return -1;
@@ -354,8 +353,20 @@ int main(int argc, char **argv)
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
 
         rr_running = true;
-
         LOG_INFO("run!");
+        return 0;
+
+out_sdl:
+        SDL_Quit();
+        return -2;
+}
+
+
+int main(int argc, char **argv)
+{
+        if(rr_init()) {
+                return -1;
+        }
 
         while(rr_running) {
                 rr_begin_frame();
@@ -367,19 +378,11 @@ int main(int argc, char **argv)
                 }
                 rr_begin_scene();
 
-                //glBegin(GL_QUADS);
-                //for(int i=0; i<rr_batch_count; ++i) {
-                        //glVertex2f(rr_vertices[i].x, rr_vertices[i].y);
-                //}
-                //glEnd();
-
                 rr_flush();
                 rr_end_scene();
                 rr_end_frame();
                 usleep(100000);
         }
 
-out_sdl:
-        SDL_Quit();
         return 0;
 }
