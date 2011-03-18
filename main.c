@@ -1,7 +1,5 @@
 #include "utils.h"
 
-#include <chipmunk/chipmunk.h>
-
 #include <SDL/SDL.h>
 #include <GL/glu.h>
 #include <GL/gl.h>
