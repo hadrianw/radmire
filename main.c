@@ -10,21 +10,7 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-
-enum RR_PIXEL_FORMAT {
-        RR_NONE_FORMAT,
-        RR_A8,
-	RR_L8,
-	RR_L8A8,
-	RR_A8L8,
-	RR_R5G6B5,
-	RR_R5G5B5A1,
-	RR_R8G8B8,
-	RR_R8G8B8A8,
-	RR_PF_COUNT
-};
+#include "rr_types.h"
 
 const int rr_pf_red_bits[] = {
         0, // RR_NONE_FORMAT
@@ -69,17 +55,10 @@ int rr_height = -1;
 int rr_format = 0;
 bool rr_fullscreen = false;
 
-float rr_top;
-float rr_left;
-float rr_bottom;
-float rr_right;
-
-enum RR_ASPECT_BASE {
-        RR_DIAGONAL,
-        RR_VERTICAL,
-        RR_NONE_BASE,
-        RR_HORIZONTAL
-};
+RRfloat rr_top;
+RRfloat rr_left;
+RRfloat rr_bottom;
+RRfloat rr_right;
 
 void rr_set_base_diagonal(int width, int height)
 {
@@ -116,26 +95,21 @@ void rr_set_base_horizontal(int width, int height)
 }
 
 int rr_base;
-struct rr_transform {
-        cpVect col1;
-        cpVect col2;
-        cpVect pos;
-};
-const struct rr_transform rr_transform_identity = {{1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f}};
 
-static inline cpVect rr_transform_vect(const struct rr_transform t, const cpVect v)
+static inline struct RRvec2 rr_transform_vect(const struct RRtransform t, const struct RRvec2 v)
 {       
-	float x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
-	float y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
+        struct RRvec2 res;
+	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
+	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
 
-	return cpv(x, y);
+	return res;
 }
 
-struct rr_transform rr_screen_transform;
-float rr_width_factor = 0.0f;
-float rr_height_factor = 0.0f;
+struct RRtransform rr_screen_transform;
+RRfloat rr_width_factor = 0.0f;
+RRfloat rr_height_factor = 0.0f;
 
-void rr_set_screen_transform(int width, int height, float left, float right, float bottom, float top)
+void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top)
 {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -211,8 +185,8 @@ bool rr_changed_keys[SDLK_LAST];
 #define RR_SDL_MAX_BUTTONS 255
 bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS];
 bool rr_changed_buttons[RR_SDL_MAX_BUTTONS];
-cpVect rr_abs_mouse = {0.0f, 0.0f};
-cpVect rr_rel_mouse = {0.0f, 0.0f};
+struct RRvec2 rr_abs_mouse = {0.0f, 0.0f};
+struct RRvec2 rr_rel_mouse = {0.0f, 0.0f};
 bool rr_mouse_moved = false;
 bool rr_key_pressed = false;
 bool rr_button_pressed = false;
@@ -228,7 +202,7 @@ void rr_begin_frame(void)
                 rr_changed_keys[i] = false;
         for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
                 rr_changed_buttons[i] = false;
-        rr_rel_mouse = cpvzero;
+        rr_rel_mouse = rr_vec2_zero;
         rr_mouse_moved = false;
         rr_key_pressed = false;
         rr_button_pressed = false;
@@ -295,19 +269,12 @@ void rr_end_frame(void)
 {
 }
 
-struct rr_color {
-        uint8_t red;
-        uint8_t green;
-        uint8_t blue;
-        uint8_t alpha;
-};
-
 #define RR_BATCH_SIZE 4096
-cpVect rr_vertices[RR_BATCH_SIZE];
+struct RRvec2 rr_vertices[RR_BATCH_SIZE];
 unsigned int rr_vertex_count = 0;
-cpVect rr_tex_coords[RR_BATCH_SIZE];
+struct RRvec2 rr_tex_coords[RR_BATCH_SIZE];
 unsigned int rr_tex_coords_count = 0;
-struct rr_color rr_colors[RR_BATCH_SIZE];
+struct RRcolor rr_colors[RR_BATCH_SIZE];
 unsigned int rr_colors_count = 0;
 
 unsigned int rr_batch_count = 0;
@@ -318,7 +285,7 @@ void rr_batch_init(void)
         //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         //glEnableClientState(GL_COLOR_ARRAY);
 
-        //glTexCoordPointer(2, GL_FLOAT, 0, rr_tex_coords);
+        //glTexCoordPointer(2, GL_DOUBLE, 0, rr_tex_coords);
         //glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
 }
 
@@ -361,6 +328,11 @@ out_sdl:
         return -2;
 }
 
+void rr_deinit(void)
+{
+        SDL_Quit();
+}
+
 
 int main(int argc, char **argv)
 {
@@ -384,5 +356,6 @@ int main(int argc, char **argv)
                 usleep(100000);
         }
 
+        rr_deinit();
         return 0;
 }
