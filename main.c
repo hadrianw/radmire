@@ -292,7 +292,19 @@ GLenum rr_polygon_mode = GL_QUADS;
 void rr_flush(void)
 {
         glVertexPointer(2, GL_DOUBLE, 0, rr_vertices);
-        glDrawArrays(rr_polygon_mode, 0, rr_batch_count);
+
+        glColor3f(1.0f, 0.0f, 1.0f);
+        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & ~3);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & ~3);
+        glDrawArrays(GL_LINE_STRIP, rr_batch_count & ~3, rr_batch_count & 3);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glDrawArrays(GL_POINTS, 0, rr_batch_count);
+
         //rr_batch_count = 0;
 }
 
@@ -316,6 +328,7 @@ int rr_init(void)
         glShadeModel(GL_SMOOTH);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
+        glPointSize(4.0f);
 
         rr_running = true;
         LOG_INFO("run!");
@@ -343,7 +356,8 @@ int main(int argc, char **argv)
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
-                        rr_vertices[rr_batch_count] = rr_transform_vect(rr_screen_transform, rr_abs_mouse);
+                        rr_vertices[rr_batch_count] = rr_transform_vect(
+                                        rr_screen_transform, rr_abs_mouse);
                         ++rr_batch_count;
                 }
                 rr_begin_scene();
