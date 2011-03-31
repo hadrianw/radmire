@@ -324,6 +324,14 @@ void rr_alloc_meshes(unsigned int alloc)
                         sizeof(*rr_meshes) * (alloc - rr_meshes_used));
 }
 
+void rr_free_meshes()
+{
+        unsigned int i = 0;
+        for(; i < rr_meshes_used; ++i)
+                free(rr_meshes[i].vertices);
+        free(rr_meshes);
+}
+
 void rr_alloc_mesh(struct RRmesh *m, unsigned int alloc)
 {
         m->allocated = alloc;
@@ -418,6 +426,8 @@ int main(int argc, char **argv)
                 return -1;
         }
 
+        rr_alloc_meshes(4);
+
         struct RRvec2 screen_mouse;
         while(rr_running) {
                 rr_begin_frame();
@@ -425,6 +435,13 @@ int main(int argc, char **argv)
                                 rr_abs_mouse); 
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
+                if(rr_pressed_keys[SDLK_SPACE] && rr_changed_keys[SDLK_SPACE]) {
+                        rr_new_mesh();
+                }
+                if(rr_pressed_keys[SDLK_BACKSPACE]
+                                && rr_changed_keys[SDLK_BACKSPACE]) {
+                        rr_release_mesh(0);
+                }
                 if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
                         if(rr_vec2_sqlen(rr_vec2_minus(
                                         rr_vertices[0], screen_mouse)) < 3*3)
@@ -438,6 +455,9 @@ int main(int argc, char **argv)
                                 }
                         }
                 }*/
+                LOG_INFO("%d/%d",
+                                rr_meshes_used,
+                                rr_meshes_allocated);
                 rr_begin_scene();
 
                 rr_flush();
@@ -446,6 +466,7 @@ int main(int argc, char **argv)
                 usleep(100000);
         }
 
+        rr_free_meshes();
         rr_deinit();
         return 0;
 }
