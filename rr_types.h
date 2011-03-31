@@ -47,3 +47,9 @@ struct RRcolor {
         uint8_t alpha;
 };
 
+struct RRmesh {
+        struct RRvec2 *vertices;
+        unsigned int allocated;
+        unsigned int used;
+};
+

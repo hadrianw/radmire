@@ -293,7 +293,11 @@ void rr_flush(void)
 {
         glVertexPointer(2, GL_DOUBLE, 0, rr_vertices);
 
-        glColor3f(1.0f, 0.0f, 1.0f);
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glDrawArrays(GL_LINE_STRIP, 0, rr_batch_count);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glDrawArrays(GL_POINTS, 0, rr_batch_count);
+        /*glColor3f(1.0f, 0.0f, 1.0f);
         glDrawArrays(rr_polygon_mode, 0, rr_batch_count & ~3);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -303,9 +307,60 @@ void rr_flush(void)
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glColor3f(1.0f, 1.0f, 1.0f);
-        glDrawArrays(GL_POINTS, 0, rr_batch_count);
+        glDrawArrays(GL_POINTS, 0, rr_batch_count);*/
 
         //rr_batch_count = 0;
+}
+
+struct RRmesh *rr_meshes = NULL;
+unsigned int rr_meshes_allocated = 0;
+unsigned int rr_meshes_used = 0;
+
+void rr_alloc_meshes(unsigned int alloc)
+{
+        rr_meshes_allocated = alloc;
+        rr_meshes = malloc(sizeof(*rr_meshes) * alloc);
+        memset(rr_meshes+rr_meshes_used, 0,
+                        sizeof(*rr_meshes) * (alloc - rr_meshes_used));
+}
+
+void rr_alloc_mesh(struct RRmesh *m, unsigned int alloc)
+{
+        m->allocated = alloc;
+        m->vertices = malloc(sizeof(*m->vertices) * m->allocated);
+}
+
+unsigned int rr_new_mesh()
+{
+        if(rr_meshes_used < rr_meshes_allocated) {
+                if(!rr_meshes[rr_meshes_used].allocated) {
+                        rr_alloc_mesh(&rr_meshes[rr_meshes_used], 8);
+                }
+        } else {
+                struct RRmesh *old = rr_meshes;
+                rr_alloc_meshes(rr_meshes_allocated * 2);
+                memcpy(rr_meshes, old, sizeof(*rr_meshes) * rr_meshes_used);
+                free(old);
+                rr_alloc_mesh(&rr_meshes[rr_meshes_used], 8);
+        }
+        rr_meshes_used++;
+        return rr_meshes_used-1;
+}
+
+void rr_release_mesh(unsigned int i)
+{
+        struct RRmesh old = rr_meshes[i];
+        rr_meshes_used--;
+        rr_meshes[i] = rr_meshes[rr_meshes_used];
+        old.used = 0;
+        rr_meshes[rr_meshes_used] = old;
+
+        if(rr_meshes_used <= rr_meshes_allocated / 4) {
+                struct RRmesh *old = rr_meshes;
+                rr_alloc_meshes(rr_meshes_allocated / 2);
+                memcpy(rr_meshes, old, sizeof(*rr_meshes) * rr_meshes_used);
+                free(old);
+        }
 }
 
 int rr_init(void)
@@ -331,7 +386,7 @@ int rr_init(void)
         glPointSize(4.0f);
 
         rr_running = true;
-        LOG_INFO("run!");
+        //LOG_INFO("run!");
         return 0;
 
 out_sdl:
@@ -344,6 +399,18 @@ void rr_deinit(void)
         SDL_Quit();
 }
 
+static inline struct RRvec2 rr_vec2_minus(struct RRvec2 v1, struct RRvec2 v2)
+{
+        struct RRvec2 tmp;
+        tmp.x = v1.x - v2.x;
+        tmp.y = v1.y - v2.y;
+        return tmp;
+}
+
+static inline RRfloat rr_vec2_sqlen(struct RRvec2 v)
+{
+        return v.x*v.x + v.y*v.y;
+}
 
 int main(int argc, char **argv)
 {
@@ -351,15 +418,26 @@ int main(int argc, char **argv)
                 return -1;
         }
 
+        struct RRvec2 screen_mouse;
         while(rr_running) {
                 rr_begin_frame();
+                screen_mouse = rr_transform_vect(rr_screen_transform,
+                                rr_abs_mouse); 
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
-                        rr_vertices[rr_batch_count] = rr_transform_vect(
-                                        rr_screen_transform, rr_abs_mouse);
+                        if(rr_vec2_sqlen(rr_vec2_minus(
+                                        rr_vertices[0], screen_mouse)) < 3*3)
+                                rr_vertices[rr_batch_count] = rr_vertices[0];
+                        else
+                                rr_vertices[rr_batch_count] = screen_mouse;
                         ++rr_batch_count;
                 }
+                /*if(rr_pressed_buttons[2] && rr_changed_buttons[2]) {
+                        for(unsigned int i=0; i<rr_batch_count; ++i) {
+                                }
+                        }
+                }*/
                 rr_begin_scene();
 
                 rr_flush();

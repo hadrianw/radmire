@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <assert.h>
 
 #define LOG_FATAL(fmt, ...) rr_fatal(__FILE__, __LINE__, __ASSERT_FUNCTION, fmt, ## __VA_ARGS__)
 #define LOG_ERROR(fmt, ...) rr_error(__FILE__, __LINE__, __ASSERT_FUNCTION, fmt, ## __VA_ARGS__)
