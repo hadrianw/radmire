@@ -338,18 +338,25 @@ void rr_alloc_mesh(struct RRmesh *m, unsigned int alloc)
         m->vertices = malloc(sizeof(*m->vertices) * m->allocated);
 }
 
-unsigned int rr_new_mesh()
+unsigned int rr_new_mesh(unsigned int alloc)
 {
         if(rr_meshes_used < rr_meshes_allocated) {
+                unsigned int alloc2 = to_pow2(alloc);
+                if(rr_meshes[rr_meshes_used].allocated > 0
+                   && (rr_meshes[rr_meshes_used].allocated < alloc2 
+                   || rr_meshes[rr_meshes_used].allocated >= alloc2 * 4)) {
+                        free(rr_meshes[rr_meshes_used].vertices);
+                        rr_meshes[rr_meshes_used].allocated = 0;
+                }
                 if(!rr_meshes[rr_meshes_used].allocated) {
-                        rr_alloc_mesh(&rr_meshes[rr_meshes_used], 8);
+                        rr_alloc_mesh(&rr_meshes[rr_meshes_used], alloc2);
                 }
         } else {
                 struct RRmesh *old = rr_meshes;
                 rr_alloc_meshes(rr_meshes_allocated * 2);
                 memcpy(rr_meshes, old, sizeof(*rr_meshes) * rr_meshes_used);
                 free(old);
-                rr_alloc_mesh(&rr_meshes[rr_meshes_used], 8);
+                rr_alloc_mesh(&rr_meshes[rr_meshes_used], alloc);
         }
         rr_meshes_used++;
         return rr_meshes_used-1;
