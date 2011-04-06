@@ -292,24 +292,10 @@ GLenum rr_polygon_mode = GL_QUADS;
 void rr_flush(void)
 {
         glVertexPointer(2, GL_DOUBLE, 0, rr_vertices);
+        //glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
 
-        glColor3f(0.0f, 1.0f, 0.0f);
-        glDrawArrays(GL_LINE_STRIP, 0, rr_batch_count);
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glDrawArrays(GL_POINTS, 0, rr_batch_count);
-        /*glColor3f(1.0f, 0.0f, 1.0f);
-        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & ~3);
-
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glColor3f(0.0f, 1.0f, 0.0f);
-        glDrawArrays(rr_polygon_mode, 0, rr_batch_count & ~3);
-        glDrawArrays(GL_LINE_STRIP, rr_batch_count & ~3, rr_batch_count & 3);
-
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glDrawArrays(GL_POINTS, 0, rr_batch_count);*/
-
-        //rr_batch_count = 0;
+        glDrawArrays(rr_polygon_mode, 0, rr_batch_count);
+        rr_batch_count = 0;
 }
 
 struct RRmesh *rr_meshes = NULL;
@@ -427,6 +413,16 @@ static inline RRfloat rr_vec2_sqlen(struct RRvec2 v)
         return v.x*v.x + v.y*v.y;
 }
 
+struct RRvec2 rr_nodes[128];
+unsigned int rr_node_count = 0;
+struct RRpair {
+        unsigned int a;
+        unsigned int b;
+};
+struct RRpair rr_pairs[128];
+unsigned int rr_pair_count = 0;
+unsigned int rr_current_node = 0;
+
 int main(int argc, char **argv)
 {
         if(rr_init()) {
@@ -443,31 +439,48 @@ int main(int argc, char **argv)
                 if (rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 if(rr_pressed_keys[SDLK_SPACE] && rr_changed_keys[SDLK_SPACE]) {
-                        rr_new_mesh();
+                        rr_new_mesh(8);
                 }
                 if(rr_pressed_keys[SDLK_BACKSPACE]
                                 && rr_changed_keys[SDLK_BACKSPACE]) {
                         rr_release_mesh(0);
                 }
                 if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
-                        if(rr_vec2_sqlen(rr_vec2_minus(
+                        rr_nodes[rr_node_count] = screen_mouse;
+                        if(rr_node_count > 0) {
+                                rr_pairs[rr_pair_count].a = rr_current_node;
+                                rr_current_node++;
+                                rr_pairs[rr_pair_count].b = rr_current_node;
+                                rr_pair_count++;
+                        }
+                        rr_node_count++;
+                        /*if(rr_vec2_sqlen(rr_vec2_minus(
                                         rr_vertices[0], screen_mouse)) < 3*3)
                                 rr_vertices[rr_batch_count] = rr_vertices[0];
                         else
                                 rr_vertices[rr_batch_count] = screen_mouse;
-                        ++rr_batch_count;
+                        ++rr_batch_count;*/
                 }
                 /*if(rr_pressed_buttons[2] && rr_changed_buttons[2]) {
                         for(unsigned int i=0; i<rr_batch_count; ++i) {
                                 }
                         }
                 }*/
-                LOG_INFO("%d/%d",
+                /*LOG_INFO("%d/%d",
                                 rr_meshes_used,
-                                rr_meshes_allocated);
+                                rr_meshes_allocated);*/
                 rr_begin_scene();
 
+                glColor3ub(0xFF, 0xFF, 0xFF);
+                glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
+                glDrawElements(GL_LINES, rr_pair_count * 2, GL_UNSIGNED_INT, rr_pairs);
+                glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
+                glDrawArrays(GL_POINTS, 0, rr_node_count-1);
+                glColor3ub(0xFF, 0, 0xFF);
+                glDrawArrays(GL_POINTS, rr_node_count-1, 1);
+
                 rr_flush();
+
                 rr_end_scene();
                 rr_end_frame();
                 usleep(100000);
