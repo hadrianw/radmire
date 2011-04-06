@@ -449,7 +449,7 @@ int main(int argc, char **argv)
                         rr_nodes[rr_node_count] = screen_mouse;
                         if(rr_node_count > 0) {
                                 rr_pairs[rr_pair_count].a = rr_current_node;
-                                rr_current_node++;
+                                rr_current_node = rr_node_count;
                                 rr_pairs[rr_pair_count].b = rr_current_node;
                                 rr_pair_count++;
                         }
@@ -461,11 +461,14 @@ int main(int argc, char **argv)
                                 rr_vertices[rr_batch_count] = screen_mouse;
                         ++rr_batch_count;*/
                 }
-                /*if(rr_pressed_buttons[2] && rr_changed_buttons[2]) {
-                        for(unsigned int i=0; i<rr_batch_count; ++i) {
+                if(rr_pressed_buttons[2] && rr_changed_buttons[2]) {
+                        for(unsigned int i = 0; i < rr_node_count; ++i)
+                                if(rr_vec2_sqlen(rr_vec2_minus(
+                                                rr_nodes[i], screen_mouse)) < 3*3) {
+                                        rr_current_node = i;
+                                        break;
                                 }
-                        }
-                }*/
+                }
                 /*LOG_INFO("%d/%d",
                                 rr_meshes_used,
                                 rr_meshes_allocated);*/
@@ -475,9 +478,9 @@ int main(int argc, char **argv)
                 glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
                 glDrawElements(GL_LINES, rr_pair_count * 2, GL_UNSIGNED_INT, rr_pairs);
                 glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
-                glDrawArrays(GL_POINTS, 0, rr_node_count-1);
+                glDrawArrays(GL_POINTS, 0, rr_node_count);
                 glColor3ub(0xFF, 0, 0xFF);
-                glDrawArrays(GL_POINTS, rr_node_count-1, 1);
+                //glDrawArrays(GL_POINTS, rr_current_node, 1);
 
                 rr_flush();
 
