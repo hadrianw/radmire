@@ -191,6 +191,16 @@ bool rr_button_pressed = false;
 bool rr_key_released = false;
 bool rr_button_released = false;
 
+static inline bool rr_pressing_key(unsigned int key)
+{
+        return rr_pressed_keys[key] && rr_changed_keys[key];
+}
+
+static inline bool rr_pressing_button(unsigned int btn)
+{
+        return rr_pressed_buttons[btn] && rr_changed_buttons[btn];
+}
+
 bool rr_running = false;
 SDL_Event rr_sdl_event;
 
@@ -422,6 +432,7 @@ struct RRpair {
 struct RRpair rr_pairs[128];
 unsigned int rr_pair_count = 0;
 unsigned int rr_current_node = 0;
+unsigned int rr_root_node = 0;
 
 int main(int argc, char **argv)
 {
@@ -436,16 +447,15 @@ int main(int argc, char **argv)
                 rr_begin_frame();
                 screen_mouse = rr_transform_vect(rr_screen_transform,
                                 rr_abs_mouse); 
-                if (rr_pressed_keys[SDLK_ESCAPE])
+                if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
-                if(rr_pressed_keys[SDLK_SPACE] && rr_changed_keys[SDLK_SPACE]) {
+                if(rr_pressing_key(SDLK_SPACE)) {
                         rr_new_mesh(8);
                 }
-                if(rr_pressed_keys[SDLK_BACKSPACE]
-                                && rr_changed_keys[SDLK_BACKSPACE]) {
+                if(rr_pressing_key(SDLK_BACKSPACE)) {
                         rr_release_mesh(0);
                 }
-                if(rr_pressed_buttons[0] && rr_changed_buttons[0]) {
+                if(rr_pressing_button(0)) {
                         rr_nodes[rr_node_count] = screen_mouse;
                         if(rr_node_count > 0) {
                                 rr_pairs[rr_pair_count].a = rr_current_node;
@@ -454,14 +464,8 @@ int main(int argc, char **argv)
                                 rr_pair_count++;
                         }
                         rr_node_count++;
-                        /*if(rr_vec2_sqlen(rr_vec2_minus(
-                                        rr_vertices[0], screen_mouse)) < 3*3)
-                                rr_vertices[rr_batch_count] = rr_vertices[0];
-                        else
-                                rr_vertices[rr_batch_count] = screen_mouse;
-                        ++rr_batch_count;*/
                 }
-                if(rr_pressed_buttons[2] && rr_changed_buttons[2]) {
+                if(rr_pressing_button(2)) {
                         for(unsigned int i = 0; i < rr_node_count; ++i)
                                 if(rr_vec2_sqlen(rr_vec2_minus(
                                                 rr_nodes[i], screen_mouse)) < 3*3) {
@@ -477,12 +481,15 @@ int main(int argc, char **argv)
                 glColor3ub(0xFF, 0xFF, 0xFF);
                 glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
                 glDrawElements(GL_LINES, rr_pair_count * 2, GL_UNSIGNED_INT, rr_pairs);
-                glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
                 glDrawArrays(GL_POINTS, 0, rr_node_count);
-                glColor3ub(0xFF, 0, 0xFF);
-                //glDrawArrays(GL_POINTS, rr_current_node, 1);
+                if(rr_node_count > 0) {
+                        glColor3ub(0xFF, 0, 0xFF);
+                        glDrawArrays(GL_POINTS, rr_current_node, 1);
+                        glColor3ub(0xFF, 0, 0);
+                        glDrawArrays(GL_POINTS, rr_root_node, 1);
+                }
 
-                rr_flush();
+                //rr_flush();
 
                 rr_end_scene();
                 rr_end_frame();
