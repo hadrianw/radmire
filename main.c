@@ -10,6 +10,27 @@
 #include <math.h>
 #include "rr_types.h"
 
+static inline struct RRvec2 rr_vec2_plus(struct RRvec2 v1, struct RRvec2 v2)
+{
+        struct RRvec2 tmp;
+        tmp.x = v1.x + v2.x;
+        tmp.y = v1.y + v2.y;
+        return tmp;
+}
+
+static inline struct RRvec2 rr_vec2_minus(struct RRvec2 v1, struct RRvec2 v2)
+{
+        struct RRvec2 tmp;
+        tmp.x = v1.x - v2.x;
+        tmp.y = v1.y - v2.y;
+        return tmp;
+}
+
+static inline RRfloat rr_vec2_sqlen(struct RRvec2 v)
+{
+        return v.x*v.x + v.y*v.y;
+}
+
 const int rr_pf_red_bits[] = {
         0, // RR_NONE_FORMAT
         0, // RR_A8,
@@ -99,6 +120,15 @@ static inline struct RRvec2 rr_transform_vect(const struct RRtransform t, const 
         struct RRvec2 res;
 	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
 	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
+
+	return res;
+}
+
+static inline struct RRvec2 rr_transformR_vect(const struct RRtransform t, const struct RRvec2 v)
+{       
+        struct RRvec2 res;
+	res.x = t.col1.x*v.x+t.col2.x*v.y;
+	res.y = t.col1.y*v.x+t.col2.y*v.y;
 
 	return res;
 }
@@ -222,8 +252,8 @@ void rr_begin_frame(void)
                         rr_running = false;
                         return;
                 case SDL_MOUSEMOTION:
-                        rr_rel_mouse.x = rr_sdl_event.motion.xrel;
-                        rr_rel_mouse.y = rr_sdl_event.motion.yrel;
+                        rr_rel_mouse.x += rr_sdl_event.motion.xrel;
+                        rr_rel_mouse.y += rr_sdl_event.motion.yrel;
                         rr_abs_mouse.x = rr_sdl_event.motion.x;
                         rr_abs_mouse.y = rr_sdl_event.motion.y;
                         rr_mouse_moved = true;
@@ -410,19 +440,6 @@ void rr_deinit(void)
         SDL_Quit();
 }
 
-static inline struct RRvec2 rr_vec2_minus(struct RRvec2 v1, struct RRvec2 v2)
-{
-        struct RRvec2 tmp;
-        tmp.x = v1.x - v2.x;
-        tmp.y = v1.y - v2.y;
-        return tmp;
-}
-
-static inline RRfloat rr_vec2_sqlen(struct RRvec2 v)
-{
-        return v.x*v.x + v.y*v.y;
-}
-
 struct RRvec2 rr_nodes[128];
 unsigned int rr_node_count = 0;
 struct RRpair {
@@ -433,6 +450,7 @@ struct RRpair rr_pairs[128];
 unsigned int rr_pair_count = 0;
 unsigned int rr_current_node = 0;
 unsigned int rr_root_node = 0;
+bool rr_move_nodes = 0;
 
 int main(int argc, char **argv)
 {
@@ -443,19 +461,27 @@ int main(int argc, char **argv)
         rr_alloc_meshes(4);
 
         struct RRvec2 screen_mouse;
+        struct RRvec2 screen_mouse_rel;
         while(rr_running) {
                 rr_begin_frame();
                 screen_mouse = rr_transform_vect(rr_screen_transform,
                                 rr_abs_mouse); 
+                screen_mouse_rel = rr_transformR_vect(rr_screen_transform,
+                                rr_rel_mouse); 
+                if(rr_move_nodes && rr_mouse_moved)
+                        rr_nodes[rr_current_node] = rr_vec2_plus(
+                                        rr_nodes[rr_current_node],
+                                        screen_mouse_rel);
+
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
-                if(rr_pressing_key(SDLK_SPACE)) {
+                if(rr_pressing_key(SDLK_SPACE))
                         rr_new_mesh(8);
-                }
-                if(rr_pressing_key(SDLK_BACKSPACE)) {
+                if(rr_pressing_key(SDLK_BACKSPACE))
                         rr_release_mesh(0);
+                if(rr_pressing_key(SDLK_g)) {
+                        rr_move_nodes = true;                
                 }
-
                 if(rr_pressing_key(SDLK_r)) {
                         if(rr_pressed_keys[SDLK_LSHIFT]
                            || rr_pressed_keys[SDLK_RSHIFT])
@@ -464,14 +490,18 @@ int main(int argc, char **argv)
                                 rr_current_node = rr_root_node;
                 }
                 if(rr_pressing_button(0)) {
-                        rr_nodes[rr_node_count] = screen_mouse;
-                        if(rr_node_count > 0) {
-                                rr_pairs[rr_pair_count].a = rr_current_node;
-                                rr_current_node = rr_node_count;
-                                rr_pairs[rr_pair_count].b = rr_current_node;
-                                rr_pair_count++;
+                        if(rr_move_nodes)
+                                rr_move_nodes = false;
+                        else {
+                                rr_nodes[rr_node_count] = screen_mouse;
+                                if(rr_node_count > 0) {
+                                        rr_pairs[rr_pair_count].a = rr_current_node;
+                                        rr_current_node = rr_node_count;
+                                        rr_pairs[rr_pair_count].b = rr_current_node;
+                                        rr_pair_count++;
+                                }
+                                rr_node_count++;
                         }
-                        rr_node_count++;
                 }
                 if(rr_pressing_button(2)) {
                         for(unsigned int i = 0; i < rr_node_count; ++i)
@@ -496,12 +526,19 @@ int main(int argc, char **argv)
                         glColor3ub(0xFF, 0, 0);
                         glDrawArrays(GL_POINTS, rr_root_node, 1);
                 }
+                glBegin(GL_LINE_STRIP);
+                glVertex2i(-100, -100);
+                glVertex2i(-100, 100);
+                glVertex2i(100, 100);
+                glVertex2i(100, -100);
+                glVertex2i(-100, -100);
+                glEnd();
 
                 //rr_flush();
 
                 rr_end_scene();
                 rr_end_frame();
-                usleep(100000);
+                usleep(10000);
         }
 
         rr_free_meshes();
