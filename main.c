@@ -455,6 +455,14 @@ int main(int argc, char **argv)
                 if(rr_pressing_key(SDLK_BACKSPACE)) {
                         rr_release_mesh(0);
                 }
+
+                if(rr_pressing_key(SDLK_r)) {
+                        if(rr_pressed_keys[SDLK_LSHIFT]
+                           || rr_pressed_keys[SDLK_RSHIFT])
+                                rr_root_node = rr_current_node;
+                        else
+                                rr_current_node = rr_root_node;
+                }
                 if(rr_pressing_button(0)) {
                         rr_nodes[rr_node_count] = screen_mouse;
                         if(rr_node_count > 0) {
