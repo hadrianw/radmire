@@ -526,6 +526,7 @@ int main(int argc, char **argv)
                         glColor3ub(0xFF, 0, 0);
                         glDrawArrays(GL_POINTS, rr_root_node, 1);
                 }
+                glColor3ub(0xFF, 0xFF, 0xFF);
                 glBegin(GL_LINE_STRIP);
                 glVertex2i(-100, -100);
                 glVertex2i(-100, 100);
