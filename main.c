@@ -512,27 +512,6 @@ int main(int argc, char **argv)
                                 rr_meshes_allocated);*/
                 rr_begin_scene();
 
-                /*
-                glColor3ub(0xFF, 0xFF, 0xFF);
-                glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
-                glDrawElements(GL_LINES, rr_pair_count * 2, GL_UNSIGNED_INT, rr_pairs);
-                glDrawArrays(GL_POINTS, 0, rr_node_count);
-                if(rr_node_count > 0) {
-                        glColor3ub(0xFF, 0, 0xFF);
-                        glDrawArrays(GL_POINTS, rr_current_node, 1);
-                        glColor3ub(0xFF, 0, 0);
-                        glDrawArrays(GL_POINTS, rr_root_node, 1);
-                }
-                glColor3ub(0xFF, 0xFF, 0xFF);
-                glBegin(GL_LINE_STRIP);
-                glVertex2i(-100, -100);
-                glVertex2i(-100, 100);
-                glVertex2i(100, 100);
-                glVertex2i(100, -100);
-                glVertex2i(-100, -100);
-                glEnd();
-                */
-
                 rrgl_vertex_pointer(rr_nodes);
                 rrgl_color(white);
                 rrgl_draw_elements(GL_LINES, rr_pair_count * 2, rr_pairs);

@@ -1,4 +1,5 @@
 #include "rrgl.h"
+#include "utils.h"
 #include <string.h>
 
 #ifdef RR_DOUBLE_FLOAT
@@ -15,7 +16,7 @@ struct RRvec2 *texcoords = NULL;
 struct RRvec2 batch_vertices[BATCH_VERTS];
 struct RRcolor batch_colors[BATCH_VERTS];
 struct RRvec2 batch_texcoords[BATCH_VERTS];
-unsigned int batch_vertex_count = 0;
+unsigned int batch_count = 0;
 GLenum batch_mode = GL_QUADS;
 
 struct RRtransform transform;
@@ -47,44 +48,47 @@ void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count)
 {
         unsigned int i;
         if(count > BATCH_VERTS) {
+                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
                 return;
         }
-        if(batch_mode != mode || batch_vertex_count + count > BATCH_VERTS) {
+        if(batch_mode != mode || batch_count + count > BATCH_VERTS) {
                 rrgl_flush();
                 batch_mode = mode;
         }
-        for(i = first; i < count; ++i)
-                batch_vertices[batch_vertex_count + i]
-                        = rr_transform_vect(transform, vertices[i]);
+        for(i = 0; i < count; ++i)
+                batch_vertices[batch_count + i]
+                        = rr_transform_vect(transform, vertices[first + i]);
         if(colors)
-                memcpy(batch_colors+first, colors+first, sizeof(*colors) * count);
+                memcpy(batch_colors + batch_count, colors + first,
+                                sizeof(*colors) * count);
         else
-                for(i = first; i < count; ++i)
-                        batch_colors[batch_vertex_count + i] = color;
-        batch_vertex_count += count;
+                for(i = 0; i < count; ++i)
+                        batch_colors[batch_count + i] = color;
+        batch_count += count;
 }
 
 void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
 {
         unsigned int i;
         if(count > BATCH_VERTS) {
+                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
                 return;
         }
-        if(batch_mode != mode || batch_vertex_count + count > BATCH_VERTS) {
+        if(batch_mode != mode || batch_count + count > BATCH_VERTS) {
                 rrgl_flush();
                 batch_mode = mode;
         }
         for(i = 0; i < count; ++i)
-                batch_vertices[batch_vertex_count + i]
+                batch_vertices[batch_count + i]
                         = rr_transform_vect(transform, vertices[indices[i]]);
         if(colors)
                 for(i = 0; i < count; ++i)
-                        batch_colors[batch_vertex_count + i]
+                        batch_colors[batch_count + i]
                                 = colors[indices[i]];
         else
                 for(i = 0; i < count; ++i)
-                        batch_colors[batch_vertex_count + i] = color;
-        batch_vertex_count += count;
+                        batch_colors[batch_count + i] = color;
+        batch_count += count;
 }
 
 void rrgl_flush()
@@ -93,8 +97,8 @@ void rrgl_flush()
         //glTexCoordPointer(2, RRGL_FLOAT_TYPE, 0, batch_texcoords);
         glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch_colors);
 
-        glDrawArrays(batch_mode, 0, batch_vertex_count);
-        batch_vertex_count = 0;
+        glDrawArrays(batch_mode, 0, batch_count);
+        batch_count = 0;
 }
 
 void rrgl_color(struct RRcolor c)
