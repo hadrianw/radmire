@@ -297,37 +297,6 @@ void rr_end_frame(void)
 {
 }
 
-#define RR_BATCH_SIZE 4096
-struct RRvec2 rr_vertices[RR_BATCH_SIZE];
-unsigned int rr_vertex_count = 0;
-struct RRvec2 rr_tex_coords[RR_BATCH_SIZE];
-unsigned int rr_tex_coords_count = 0;
-struct RRcolor rr_colors[RR_BATCH_SIZE];
-unsigned int rr_colors_count = 0;
-
-unsigned int rr_batch_count = 0;
-
-void rr_batch_init(void)
-{
-        glEnableClientState(GL_VERTEX_ARRAY);
-        //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        //glEnableClientState(GL_COLOR_ARRAY);
-
-        //glTexCoordPointer(2, GL_DOUBLE, 0, rr_tex_coords);
-        //glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
-}
-
-GLenum rr_polygon_mode = GL_QUADS;
-
-void rr_flush(void)
-{
-        glVertexPointer(2, GL_DOUBLE, 0, rr_vertices);
-        //glColorPointer(4, GL_UNSIGNED_BYTE, 0, rr_colors);
-
-        glDrawArrays(rr_polygon_mode, 0, rr_batch_count);
-        rr_batch_count = 0;
-}
-
 struct RRmesh *rr_meshes = NULL;
 unsigned int rr_meshes_allocated = 0;
 unsigned int rr_meshes_used = 0;
@@ -407,7 +376,6 @@ int rr_init(void)
                 rr_pressed_keys[i] = false;
         for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
                 rr_pressed_buttons[i] = false;
-        rr_batch_init();
         glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
