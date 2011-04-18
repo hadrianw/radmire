@@ -288,6 +288,7 @@ void rr_begin_scene(void)
 
 void rr_end_scene(void)
 {
+        rrgl_flush();
         glFlush();
         SDL_GL_SwapBuffers();
 }
@@ -383,6 +384,7 @@ int rr_init(void)
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
+        rrgl_init();
 
         rr_running = true;
         //LOG_INFO("run!");
@@ -415,7 +417,6 @@ int main(int argc, char **argv)
         if(rr_init()) {
                 return -1;
         }
-        rrgl_init();
         struct RRcolor white = {0xFF, 0xFF, 0xFF, 0xFF};
         struct RRcolor magenta = {0xFF, 0x00, 0xFF, 0xFF};
         struct RRcolor red = {0xFF, 0x00, 0x00, 0xFF};
@@ -498,8 +499,6 @@ int main(int argc, char **argv)
                 glVertex2i(100, -100);
                 glVertex2i(-100, -100);
                 glEnd();
-
-                rrgl_flush();
 
                 rr_end_scene();
                 rr_end_frame();
