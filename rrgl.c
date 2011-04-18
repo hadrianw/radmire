@@ -1,4 +1,5 @@
 #include "rrgl.h"
+#include "rr_math.h"
 #include "utils.h"
 #include <string.h>
 

@@ -1,3 +1,5 @@
+#ifndef RR_rr_types_h_
+#define RR_rr_types_h_
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -45,15 +47,6 @@ static const struct RRtransform rr_transform_identity = {
         {0.0f, 1.0f},
         {0.0f, 0.0f}
 };
-static inline struct RRvec2 rr_transform_vect(const struct RRtransform t, const struct RRvec2 v)
-{       
-        struct RRvec2 res;
-	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
-	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
-
-	return res;
-}
-
 
 struct RRcolor {
         uint8_t red;
@@ -68,3 +61,4 @@ struct RRmesh {
         unsigned int used;
 };
 
+#endif
