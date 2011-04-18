@@ -2,13 +2,12 @@
 
 #include <SDL/SDL.h>
 #include <GL/glu.h>
-#include <GL/gl.h>
 
 #include <unistd.h>
 
 #include <stdio.h>
 #include <math.h>
-#include "rr_types.h"
+#include "rrgl.h"
 
 static inline struct RRvec2 rr_vec2_plus(struct RRvec2 v1, struct RRvec2 v2)
 {
@@ -114,15 +113,6 @@ void rr_set_base_horizontal(int width, int height)
 }
 
 int rr_base;
-
-static inline struct RRvec2 rr_transform_vect(const struct RRtransform t, const struct RRvec2 v)
-{       
-        struct RRvec2 res;
-	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
-	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
-
-	return res;
-}
 
 static inline struct RRvec2 rr_transformR_vect(const struct RRtransform t, const struct RRvec2 v)
 {       
@@ -457,6 +447,12 @@ int main(int argc, char **argv)
         if(rr_init()) {
                 return -1;
         }
+        rrgl_init();
+        struct RRcolor white = {0xFF, 0xFF, 0xFF, 0xFF};
+        struct RRcolor magenta = {0xFF, 0x00, 0xFF, 0xFF};
+        struct RRcolor red = {0xFF, 0x00, 0x00, 0xFF};
+        rrgl_color(white);
+        rrgl_load_transform(&rr_transform_identity);
 
         rr_alloc_meshes(4);
 
@@ -516,6 +512,7 @@ int main(int argc, char **argv)
                                 rr_meshes_allocated);*/
                 rr_begin_scene();
 
+                /*
                 glColor3ub(0xFF, 0xFF, 0xFF);
                 glVertexPointer(2, GL_DOUBLE, 0, rr_nodes);
                 glDrawElements(GL_LINES, rr_pair_count * 2, GL_UNSIGNED_INT, rr_pairs);
@@ -534,8 +531,28 @@ int main(int argc, char **argv)
                 glVertex2i(100, -100);
                 glVertex2i(-100, -100);
                 glEnd();
+                */
 
-                //rr_flush();
+                rrgl_vertex_pointer(rr_nodes);
+                rrgl_color(white);
+                rrgl_draw_elements(GL_LINES, rr_pair_count * 2, rr_pairs);
+                rrgl_draw_arrays(GL_POINTS, 0, rr_node_count);
+                if(rr_node_count > 0) {
+                        rrgl_color(magenta);
+                        rrgl_draw_arrays(GL_POINTS, rr_current_node, 1);
+                        rrgl_color(red);
+                        rrgl_draw_arrays(GL_POINTS, rr_root_node, 1);
+                }
+                glColor3ub(0xFF, 0xFF, 0xFF);
+                glBegin(GL_LINE_STRIP);
+                glVertex2i(-100, -100);
+                glVertex2i(-100, 100);
+                glVertex2i(100, 100);
+                glVertex2i(100, -100);
+                glVertex2i(-100, -100);
+                glEnd();
+
+                rrgl_flush();
 
                 rr_end_scene();
                 rr_end_frame();

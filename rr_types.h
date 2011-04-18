@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define RR_DOUBLE_FLOAT
+
 enum RR_PIXEL_FORMAT {
         RR_NONE_FORMAT,
         RR_A8,
@@ -21,7 +23,11 @@ enum RR_ASPECT_BASE {
         RR_HORIZONTAL
 };
 
+#ifdef RR_DOUBLE_FLOAT
 typedef double RRfloat;
+#else
+typedef float RRfloat;
+#endif
 
 struct RRvec2 {
         RRfloat x;
@@ -39,6 +45,15 @@ static const struct RRtransform rr_transform_identity = {
         {0.0f, 1.0f},
         {0.0f, 0.0f}
 };
+static inline struct RRvec2 rr_transform_vect(const struct RRtransform t, const struct RRvec2 v)
+{       
+        struct RRvec2 res;
+	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
+	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
+
+	return res;
+}
+
 
 struct RRcolor {
         uint8_t red;
