@@ -266,6 +266,7 @@ void rr_end_scene(void)
 
 void rr_end_frame(void)
 {
+        usleep(10000);
 }
 
 struct RRmesh *rr_meshes = NULL;
@@ -453,7 +454,8 @@ int main(int argc, char **argv)
 
                 rrgl_vertex_pointer(rr_nodes);
                 rrgl_color(white);
-                rrgl_draw_elements(GL_LINES, rr_pair_count * 2, rr_pairs);
+                rrgl_draw_elements(GL_LINES, rr_pair_count * 2,
+                                (unsigned int*)rr_pairs);
                 rrgl_draw_arrays(GL_POINTS, 0, rr_node_count);
                 if(rr_node_count > 0) {
                         rrgl_color(magenta);
@@ -472,7 +474,6 @@ int main(int argc, char **argv)
 
                 rr_end_scene();
                 rr_end_frame();
-                usleep(10000);
         }
 
         rr_free_meshes();
