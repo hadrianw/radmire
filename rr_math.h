@@ -1,6 +1,17 @@
 #include "rr_types.h"
 #include <math.h>
 
+static inline unsigned int to_pow2(unsigned int v)
+{
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        return ++v;
+}
+
 static inline struct RRvec2 rr_vec2_plus(struct RRvec2 v1, struct RRvec2 v2)
 {
         struct RRvec2 tmp;

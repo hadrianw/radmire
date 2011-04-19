@@ -10,14 +10,3 @@ void rr_fatal(const char *file, int line, const char *function, const char *form
 void rr_error(const char *file, int line, const char *function, const char *format, ...);
 void rr_warn(const char *file, int line, const char *function, const char *format, ...);
 void rr_info(const char *format, ...);
-
-static inline unsigned int to_pow2(unsigned int v)
-{
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return ++v;
-}
