@@ -383,6 +383,17 @@ unsigned int rr_current_node = 0;
 unsigned int rr_root_node = 0;
 bool rr_move_nodes = 0;
 
+struct RRnode {
+        unsigned int children[8];
+        unsigned int child_count;
+        unsigned int parent;
+        struct RRtransform abs;
+        struct RRtransform rel;
+        RRfloat angle;
+        RRfloat length;
+};
+struct RRnode rr_transform_nodes[128];
+
 int main(int argc, char **argv)
 {
         if(rr_init()) {
@@ -430,6 +441,9 @@ int main(int argc, char **argv)
                                 rr_move_nodes = false;
                         else {
                                 rr_nodes[rr_node_count] = screen_mouse;
+                                rr_transform_nodes[rr_node_count].abs =
+                                        rr_transform_from_vec2(screen_mouse);
+                                LOG_INFO("%f", rr_acos(rr_transform_nodes[rr_node_count].abs.col1.x)*180/M_PI);
                                 if(rr_node_count > 0) {
                                         rr_pairs[rr_pair_count].a = rr_current_node;
                                         rr_current_node = rr_node_count;
@@ -463,13 +477,21 @@ int main(int argc, char **argv)
                         rrgl_color(red);
                         rrgl_draw_arrays(GL_POINTS, rr_root_node, 1);
                 }
-                glColor3ub(0xFF, 0xFF, 0xFF);
+
+                glColor4ub(0xFF, 0xFF, 0xFF, 0x80);
                 glBegin(GL_LINE_STRIP);
                 glVertex2i(-100, -100);
                 glVertex2i(-100, 100);
                 glVertex2i(100, 100);
                 glVertex2i(100, -100);
                 glVertex2i(-100, -100);
+                glEnd();
+
+                glBegin(GL_LINES);
+                glVertex2i(-100, 0);
+                glVertex2i(100, 0);
+                glVertex2i(0, -100);
+                glVertex2i(0, 100);
                 glEnd();
 
                 rr_end_scene();
