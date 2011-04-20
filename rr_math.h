@@ -76,15 +76,13 @@ static inline struct RRtransform rr_transform_mul(const struct RRtransform a,
 	return res;
 }
 
-static inline void rr_transform_set_angle(const struct RRtransform *t,
+static inline void rr_transform_set_angle(struct RRtransform *t,
                 RRfloat angle)
 {       
         RRfloat c = rr_cos(angle);
         RRfloat s = rr_sin(angle);
 	t->col1.x = c; t->col2.x = -s;
 	t->col1.y = s; t->col2.y = c;
-
-	return res;
 }
 
 static inline struct RRtransform rr_transform_from_vec2(const struct RRvec2 v)
