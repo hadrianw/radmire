@@ -7,12 +7,14 @@
 #define rr_cos cos
 #define rr_asin asin
 #define rr_acos acos
+#define rr_atan2 atan2
 #else
 #define rr_sqrt srtf
 #define rr_sin sinf
 #define rr_cos cosf
 #define rr_asin asinf
 #define rr_acos acosf
+#define rr_atan2 atan2f
 #endif
 
 static inline unsigned int to_pow2(unsigned int v)

@@ -9,7 +9,7 @@
 #include "rrgl.h"
 #include "rr_math.h"
 
-const int rr_pf_red_bits[] = {
+static const int rr_pf_red_bits[] = {
         0, // RR_NONE_FORMAT
         0, // RR_A8,
 	0, // RR_L8,
@@ -21,7 +21,7 @@ const int rr_pf_red_bits[] = {
 	8, // RR_R8G8B8A8,
 }; 
 
-const int rr_pf_green_bits[] = {
+static const int rr_pf_green_bits[] = {
         0, // RR_NONE_FORMAT
         0, // RR_A8,
 	0, // RR_L8,
@@ -33,9 +33,9 @@ const int rr_pf_green_bits[] = {
 	8, // RR_R8G8B8A8,
 }; 
 
-const int *rr_pf_blue_bits = rr_pf_red_bits;
+static const int *rr_pf_blue_bits = rr_pf_red_bits;
 
-const int rr_pf_alpha_bits[] = {
+static const int rr_pf_alpha_bits[] = {
         0, // RR_NONE_FORMAT
         0, // RR_A8,
 	0, // RR_L8,
@@ -247,14 +247,12 @@ void rr_begin_frame(void)
         }
 }
 
-
 void rr_begin_scene(void)
 {
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 }
-
 
 void rr_end_scene(void)
 {
@@ -263,76 +261,9 @@ void rr_end_scene(void)
         SDL_GL_SwapBuffers();
 }
 
-
 void rr_end_frame(void)
 {
         usleep(10000);
-}
-
-struct RRmesh *rr_meshes = NULL;
-unsigned int rr_meshes_allocated = 0;
-unsigned int rr_meshes_used = 0;
-
-void rr_alloc_meshes(unsigned int alloc)
-{
-        rr_meshes_allocated = alloc;
-        rr_meshes = malloc(sizeof(*rr_meshes) * alloc);
-        memset(rr_meshes+rr_meshes_used, 0,
-                        sizeof(*rr_meshes) * (alloc - rr_meshes_used));
-}
-
-void rr_free_meshes()
-{
-        unsigned int i = 0;
-        for(; i < rr_meshes_used; ++i)
-                free(rr_meshes[i].vertices);
-        free(rr_meshes);
-}
-
-void rr_alloc_mesh(struct RRmesh *m, unsigned int alloc)
-{
-        m->allocated = alloc;
-        m->vertices = malloc(sizeof(*m->vertices) * m->allocated);
-}
-
-unsigned int rr_new_mesh(unsigned int alloc)
-{
-        if(rr_meshes_used < rr_meshes_allocated) {
-                unsigned int alloc2 = to_pow2(alloc);
-                if(rr_meshes[rr_meshes_used].allocated > 0
-                   && (rr_meshes[rr_meshes_used].allocated < alloc2 
-                   || rr_meshes[rr_meshes_used].allocated >= alloc2 * 4)) {
-                        free(rr_meshes[rr_meshes_used].vertices);
-                        rr_meshes[rr_meshes_used].allocated = 0;
-                }
-                if(!rr_meshes[rr_meshes_used].allocated) {
-                        rr_alloc_mesh(&rr_meshes[rr_meshes_used], alloc2);
-                }
-        } else {
-                struct RRmesh *old = rr_meshes;
-                rr_alloc_meshes(rr_meshes_allocated * 2);
-                memcpy(rr_meshes, old, sizeof(*rr_meshes) * rr_meshes_used);
-                free(old);
-                rr_alloc_mesh(&rr_meshes[rr_meshes_used], alloc);
-        }
-        rr_meshes_used++;
-        return rr_meshes_used-1;
-}
-
-void rr_release_mesh(unsigned int i)
-{
-        struct RRmesh old = rr_meshes[i];
-        rr_meshes_used--;
-        rr_meshes[i] = rr_meshes[rr_meshes_used];
-        old.used = 0;
-        rr_meshes[rr_meshes_used] = old;
-
-        if(rr_meshes_used <= rr_meshes_allocated / 4) {
-                struct RRmesh *old = rr_meshes;
-                rr_alloc_meshes(rr_meshes_allocated / 2);
-                memcpy(rr_meshes, old, sizeof(*rr_meshes) * rr_meshes_used);
-                free(old);
-        }
 }
 
 int rr_init(void)
@@ -356,6 +287,8 @@ int rr_init(void)
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
         rrgl_init();
+        rrgl_color(rr_white);
+        rrgl_load_transform(&rr_transform_identity);
 
         rr_running = true;
         //LOG_INFO("run!");
@@ -371,42 +304,11 @@ void rr_deinit(void)
         SDL_Quit();
 }
 
-struct RRvec2 rr_nodes[128];
-unsigned int rr_node_count = 0;
-struct RRpair {
-        unsigned int a;
-        unsigned int b;
-};
-struct RRpair rr_pairs[128];
-unsigned int rr_pair_count = 0;
-unsigned int rr_current_node = 0;
-unsigned int rr_root_node = 0;
-bool rr_move_nodes = 0;
-
-struct RRnode {
-        unsigned int children[8];
-        unsigned int child_count;
-        unsigned int parent;
-        struct RRtransform abs;
-        struct RRtransform rel;
-        RRfloat angle;
-        RRfloat length;
-};
-struct RRnode rr_transform_nodes[128];
-
 int main(int argc, char **argv)
 {
         if(rr_init()) {
                 return -1;
         }
-        struct RRcolor white = {0xFF, 0xFF, 0xFF, 0xFF};
-        struct RRcolor magenta = {0xFF, 0x00, 0xFF, 0xFF};
-        struct RRcolor red = {0xFF, 0x00, 0x00, 0xFF};
-        rrgl_color(white);
-        rrgl_load_transform(&rr_transform_identity);
-
-        rr_alloc_meshes(4);
-
         struct RRvec2 screen_mouse;
         struct RRvec2 screen_mouse_rel;
         while(rr_running) {
@@ -415,58 +317,11 @@ int main(int argc, char **argv)
                                 rr_abs_mouse); 
                 screen_mouse_rel = rr_transformR_vect(rr_screen_transform,
                                 rr_rel_mouse); 
-                if(rr_move_nodes && rr_mouse_moved)
-                        rr_nodes[rr_current_node] = rr_vec2_plus(
-                                        rr_nodes[rr_current_node],
-                                        screen_mouse_rel);
-
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
-                if(rr_pressing_key(SDLK_SPACE))
-                        rr_new_mesh(8);
-                if(rr_pressing_key(SDLK_BACKSPACE))
-                        rr_release_mesh(0);
-                if(rr_pressing_key(SDLK_g)) {
-                        rr_move_nodes = true;                
-                }
-                if(rr_pressing_key(SDLK_r)) {
-                        if(rr_pressed_keys[SDLK_LSHIFT]
-                           || rr_pressed_keys[SDLK_RSHIFT])
-                                rr_root_node = rr_current_node;
-                        else
-                                rr_current_node = rr_root_node;
-                }
-                if(rr_pressing_button(0)) {
-                        if(rr_move_nodes)
-                                rr_move_nodes = false;
-                        else {
-                                rr_nodes[rr_node_count] = screen_mouse;
-                                rr_transform_nodes[rr_node_count].abs =
-                                        rr_transform_from_vec2(screen_mouse);
-                                LOG_INFO("%f", rr_acos(rr_transform_nodes[rr_node_count].abs.col1.x)*180/M_PI);
-                                if(rr_node_count > 0) {
-                                        rr_pairs[rr_pair_count].a = rr_current_node;
-                                        rr_current_node = rr_node_count;
-                                        rr_pairs[rr_pair_count].b = rr_current_node;
-                                        rr_pair_count++;
-                                }
-                                rr_node_count++;
-                        }
-                }
-                if(rr_pressing_button(2)) {
-                        for(unsigned int i = 0; i < rr_node_count; ++i)
-                                if(rr_vec2_sqlen(rr_vec2_minus(
-                                                rr_nodes[i], screen_mouse)) < 3*3) {
-                                        rr_current_node = i;
-                                        break;
-                                }
-                }
-                /*LOG_INFO("%d/%d",
-                                rr_meshes_used,
-                                rr_meshes_allocated);*/
                 rr_begin_scene();
 
-                rrgl_vertex_pointer(rr_nodes);
+                /*rrgl_vertex_pointer(rr_nodes);
                 rrgl_color(white);
                 rrgl_draw_elements(GL_LINES, rr_pair_count * 2,
                                 (unsigned int*)rr_pairs);
@@ -476,7 +331,7 @@ int main(int argc, char **argv)
                         rrgl_draw_arrays(GL_POINTS, rr_current_node, 1);
                         rrgl_color(red);
                         rrgl_draw_arrays(GL_POINTS, rr_root_node, 1);
-                }
+                }*/
 
                 glColor4ub(0xFF, 0xFF, 0xFF, 0x80);
                 glBegin(GL_LINE_STRIP);
@@ -498,7 +353,7 @@ int main(int argc, char **argv)
                 rr_end_frame();
         }
 
-        rr_free_meshes();
         rr_deinit();
         return 0;
 }
+

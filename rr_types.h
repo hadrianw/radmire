@@ -54,6 +54,9 @@ struct RRcolor {
         uint8_t blue;
         uint8_t alpha;
 };
+static const struct RRcolor rr_white = {0xFF, 0xFF, 0xFF, 0xFF};
+static const struct RRcolor rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
+static const struct RRcolor rr_red = {0xFF, 0x00, 0x00, 0xFF};
 
 struct RRmesh {
         struct RRvec2 *vertices;
