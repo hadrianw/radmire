@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv)
 {
-        if(rr_init()) {
+        if(rr_init(argc, argv)) {
                 return -1;
         }
         struct RRvec2 screen_mouse;

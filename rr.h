@@ -7,10 +7,12 @@ extern const int rr_pf_red_bits[];
 extern const int rr_pf_green_bits[];
 extern const int rr_pf_blue_bits[];
 extern const int rr_pf_alpha_bits[];
+extern const int rr_pf_bpp[];
 
 extern int rr_width;
 extern int rr_height;
-extern int rr_format;
+extern int rr_bpp;
+extern SDL_PixelFormat rr_format;
 extern bool rr_fullscreen;
 
 extern RRfloat rr_top;
@@ -45,7 +47,7 @@ void rr_set_base_horizontal(int width, int height);
 
 void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top);
 void rr_resize(int width, int height, int base);
-int rr_set_video_mode(int width, int height, int format, bool fullscreen, int base);
+int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
 
 inline bool rr_pressing_key(unsigned int key)
 {
@@ -61,5 +63,5 @@ void rr_begin_frame(void);
 void rr_begin_scene(void);
 void rr_end_scene(void);
 void rr_end_frame(void);
-int rr_init(void);
+int rr_init(int argc, char **argv);
 void rr_deinit(void);

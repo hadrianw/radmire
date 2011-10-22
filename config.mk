@@ -4,7 +4,7 @@ EXCLUDE =
 
 # includes and libs
 INCS = `pkg-config --cflags sdl`
-LIBS = `pkg-config --libs sdl gl glu`
+LIBS = `pkg-config --libs sdl gl glu` -lphysfs
 
 # flags
 CPPFLAGS = #-D

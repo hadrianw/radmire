@@ -1,5 +1,6 @@
 #include "utils.h"
 
+#include <physfs.h>
 #include <GL/glu.h>
 
 #include <unistd.h>
@@ -8,57 +9,12 @@
 #include "rr_math.h"
 #include "rr.h"
 
-const int rr_pf_red_bits[] = {
-        0, // RR_NONE_FORMAT
-        0, // RR_A8,
-	0, // RR_L8,
-	0, // RR_L8A8,
-	0, // RR_A8L8,
-	5, // RR_R5G6B5,
-	5, // RR_R5G5B5A1,
-	8, // RR_R8G8B8,
-	8, // RR_R8G8B8A8,
-}; 
-
-const int rr_pf_green_bits[] = {
-        0, // RR_NONE_FORMAT
-        0, // RR_A8,
-	0, // RR_L8,
-	0, // RR_L8A8,
-	0, // RR_A8L8,
-	6, // RR_R5G6B5,
-	5, // RR_R5G5B5A1,
-	8, // RR_R8G8B8,
-	8, // RR_R8G8B8A8,
-}; 
-
-const int rr_pf_blue_bits[] = {
-        0, // RR_NONE_FORMAT
-        0, // RR_A8,
-	0, // RR_L8,
-	0, // RR_L8A8,
-	0, // RR_A8L8,
-	5, // RR_R5G6B5,
-	5, // RR_R5G5B5A1,
-	8, // RR_R8G8B8,
-	8, // RR_R8G8B8A8,
-};  
-
-const int rr_pf_alpha_bits[] = {
-        0, // RR_NONE_FORMAT
-        0, // RR_A8,
-	0, // RR_L8,
-	0, // RR_L8A8,
-	0, // RR_A8L8,
-	5, // RR_R5G6B5,
-	5, // RR_R5G5B5A1,
-	8, // RR_R8G8B8,
-	8, // RR_R8G8B8A8,
-}; 
-
 int rr_width = -1;
 int rr_height = -1;
-int rr_format = 0;
+int rr_bpp = -1;
+SDL_PixelFormat rr_format = {
+        .alpha = 255
+};
 bool rr_fullscreen = false;
 
 RRfloat rr_top;
@@ -160,12 +116,12 @@ void rr_resize(int width, int height, int base)
         rr_set_screen_transform(width, height, rr_left, rr_right, rr_bottom, rr_top);
 }
 
-int rr_set_video_mode(int width, int height, int format, bool fullscreen, int base)
+int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
 {
-        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, rr_pf_red_bits[format]);
-        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, rr_pf_green_bits[format]);
-        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, rr_pf_blue_bits[format]);
-        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, rr_pf_alpha_bits[format]);
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, rr_bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, rr_bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, rr_bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, rr_bpp / 4);
 
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
@@ -180,12 +136,23 @@ int rr_set_video_mode(int width, int height, int format, bool fullscreen, int ba
         if(fullscreen)
                 flags |= SDL_FULLSCREEN;
 
-        if(!SDL_SetVideoMode(width, height, format, flags))
+        if(!SDL_SetVideoMode(width, height, bpp, flags))
                 return -1;
+
+        rr_format.BitsPerPixel = bpp;
+        rr_format.BytesPerPixel = bpp / 8;
+        rr_format.Rshift = bpp / 4 * 3;
+        rr_format.Gshift = bpp / 4 * 2;
+        rr_format.Bshift = bpp / 4 * 1;
+        rr_format.Ashift = bpp / 4 * 0;
+        rr_format.Rmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Rshift;
+        rr_format.Gmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Gshift;
+        rr_format.Bmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Bshift;
+        rr_format.Amask = ((int)powf(2, bpp / 4) - 1) << rr_format.Ashift;
 
         rr_width = width;
         rr_height = height;
-        rr_format = format;
+        rr_bpp = bpp;
         rr_fullscreen = fullscreen;
 
         rr_resize(rr_width, rr_height, base);
@@ -241,7 +208,7 @@ void rr_begin_frame(void)
                         break;
                 case SDL_VIDEORESIZE:
                         rr_set_video_mode(rr_sdl_event.resize.w,
-                                        rr_sdl_event.resize.h, rr_format,
+                                        rr_sdl_event.resize.h, rr_bpp,
                                         rr_fullscreen, rr_base);
                         break;
                 }
@@ -267,12 +234,16 @@ void rr_end_frame(void)
         usleep(10000);
 }
 
-int rr_init(void)
+int rr_init(int argc, char **argv)
 {
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-                return -1;
-        }
-        if (rr_set_video_mode(1024, 768, RR_R8G8B8A8, false, RR_DIAGONAL))
+	if(!PHYSFS_init(argv[0]))
+                goto out;
+	if(!PHYSFS_setSaneConfig("hawski", "rr", "spk", 0, 0))
+                goto out_physfs;
+
+        if(SDL_Init(SDL_INIT_VIDEO) < 0)
+                goto out_physfs;
+        if(rr_set_video_mode(1024, 768, 32, false, RR_DIAGONAL))
                 goto out_sdl;
 
         SDL_EnableKeyRepeat(0, 0);
@@ -292,15 +263,18 @@ int rr_init(void)
         rrgl_load_transform(&rr_transform_identity);
 
         rr_running = true;
-        //LOG_INFO("run!");
         return 0;
 
 out_sdl:
         SDL_Quit();
+out_physfs:
+        PHYSFS_deinit();
+out:
         return -2;
 }
 
 void rr_deinit(void)
 {
         SDL_Quit();
+        PHYSFS_deinit();
 }
