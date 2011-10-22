@@ -3,12 +3,6 @@
 
 #define RR_SDL_MAX_BUTTONS 255
 
-extern const int rr_pf_red_bits[];
-extern const int rr_pf_green_bits[];
-extern const int rr_pf_blue_bits[];
-extern const int rr_pf_alpha_bits[];
-extern const int rr_pf_bpp[];
-
 extern int rr_width;
 extern int rr_height;
 extern int rr_bpp;
