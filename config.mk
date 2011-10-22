@@ -1,4 +1,4 @@
-TARGET = pure-c
+TARGET = game-c
 SRCS := $(wildcard *.c)
 EXCLUDE =
 
