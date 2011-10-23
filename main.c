@@ -61,7 +61,7 @@ int main(int argc, char **argv)
                 glEnd();
                 */
 
-                glActiveTexture(handle);
+                glBindTexture(GL_TEXTURE_2D, handle);
                 glBegin(GL_QUADS);
                 glColor3ub(0xFF, 0xFF, 0);
                 glTexCoord2f(0, 1);
