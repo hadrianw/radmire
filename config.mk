@@ -3,8 +3,8 @@ SRCS := $(wildcard *.c)
 EXCLUDE =
 
 # includes and libs
-INCS = `pkg-config --cflags sdl`
-LIBS = `pkg-config --libs sdl gl glu` -lphysfs
+INCS = `pkg-config --cflags sdl SDL_image`
+LIBS = `pkg-config --libs sdl SDL_image gl glu` -lphysfs
 
 # flags
 CPPFLAGS = #-D
