@@ -1,4 +1,4 @@
 *.d
 *.o
 *.swp
-pure-c
+game-c
