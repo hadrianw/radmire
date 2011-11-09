@@ -252,6 +252,7 @@ int rr_init(int argc, char **argv)
         for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
                 rr_pressed_buttons[i] = false;
         glDisable(GL_CULL_FACE);
+        glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glShadeModel(GL_SMOOTH);

@@ -14,9 +14,7 @@ int main(int argc, char **argv)
         SDL_Surface *z = rrimg_display_format(s);
         SDL_FreeSurface(s);
         s = z;
-        glEnable(GL_TEXTURE_2D);
         unsigned int handle = rrtex_load(s);
-        printf("handle %d\n", handle);
         SDL_FreeSurface(s);
 
         struct RRvec2 screen_mouse;
@@ -70,7 +68,7 @@ int main(int argc, char **argv)
                 glTexCoord2f(0, 0);
                 glVertex2i(-100, 100);
                 glTexCoord2f(1, 0);
-                glVertex2i(100, 100);
+                glVertex2i(screen_mouse.x, screen_mouse.y);
                 glTexCoord2f(1, 1);
                 glVertex2i(100, -100);
                 glEnd();
