@@ -51,3 +51,25 @@ unsigned int rrtex_load(SDL_Surface *surface)
         return handle;
 }
 
+typedef struct ImgNode {
+        SDL_Rect clip;
+        struct ImgNode *parent;
+        struct ImgNode *children[2];
+} ImgNode;
+
+// Insert source surfaces to destination, exit on first failing
+// Source surfaces are modified!
+unsigned int rrimg_atlas(SDL_Surface *srcs, unsigned int nsrcs, SDL_Surface *dst)
+{
+        unsigned int i = 0;
+        ImgNode rootnode;
+
+        for(; i < nsrcs; i++) {
+                /*if(imgnode_insert(rootnode, srcs[i])) {
+                        srcs[i]
+                } else
+                        break;*/
+        }
+        return 0;
+}
+
