@@ -51,6 +51,29 @@ unsigned int rrtex_load(SDL_Surface *surface)
         return handle;
 }
 
+unsigned int rrteximg_load(const char *path)
+{
+        unsigned int handle = 0;
+        SDL_Surface *orig = NULL;
+        SDL_Surface *conv = NULL;
+
+        orig = rrimg_load(path);
+        if(!orig)
+                goto out_orig;
+
+        conv = rrimg_display_format(orig);
+        if(!conv)
+                goto out_conv;
+
+        handle = rrtex_load(conv);
+
+        SDL_FreeSurface(conv);
+out_conv:
+        SDL_FreeSurface(orig);
+out_orig:
+        return handle;
+}
+
 typedef struct ImgNode {
         SDL_Rect clip;
         struct ImgNode *parent;
