@@ -23,6 +23,8 @@ GLenum batch_mode = GL_QUADS;
 struct RRtransform transform;
 struct RRcolor color;
 
+GLuint active_texture = 0;
+
 void rrgl_init(void)
 {
         glEnableClientState(GL_VERTEX_ARRAY);
@@ -110,5 +112,14 @@ void rrgl_color(struct RRcolor c)
 void rrgl_load_transform(const struct RRtransform *t)
 {
         transform = *t;
+}
+
+void rrgl_bind_texture(GLuint texture)
+{
+        if(active_texture == texture)
+                return;
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+        active_texture = texture;
 }
 

@@ -13,3 +13,5 @@ void rrgl_flush(void);
 
 void rrgl_color(struct RRcolor color);
 void rrgl_load_transform(const struct RRtransform *t);
+void rrgl_bind_texture(GLuint texture);
+
