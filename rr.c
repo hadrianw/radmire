@@ -34,6 +34,8 @@ bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS];
 bool rr_changed_buttons[RR_SDL_MAX_BUTTONS];
 struct RRvec2 rr_abs_mouse = {0.0f, 0.0f};
 struct RRvec2 rr_rel_mouse = {0.0f, 0.0f};
+struct RRvec2 rr_abs_screen_mouse = {0.0f, 0.0f};
+struct RRvec2 rr_rel_screen_mouse = {0.0f, 0.0f};
 bool rr_mouse_moved = false;
 bool rr_key_pressed = false;
 bool rr_button_pressed = false;
@@ -116,12 +118,19 @@ void rr_resize(int width, int height, int base)
         rr_set_screen_transform(width, height, rr_left, rr_right, rr_bottom, rr_top);
 }
 
+int rr_fullscreen_mode(int base)
+{
+        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
+        return rr_set_video_mode(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
+}
+
+
 int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
 {
-        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, rr_bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, rr_bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, rr_bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, rr_bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, bpp / 4);
 
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
@@ -213,6 +222,10 @@ void rr_begin_frame(void)
                         break;
                 }
         }
+        rr_abs_screen_mouse = rr_transform_vect(rr_screen_transform,
+                        rr_abs_mouse); 
+        rr_rel_screen_mouse = rr_transformR_vect(rr_screen_transform,
+                        rr_rel_mouse); 
 }
 
 void rr_begin_scene(void)
@@ -244,6 +257,7 @@ int rr_init(int argc, char **argv)
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
                 goto out_physfs;
         if(rr_set_video_mode(1024, 768, 32, false, RR_DIAGONAL))
+        //if(rr_fullscreen_mode(RR_DIAGONAL))
                 goto out_sdl;
 
         SDL_EnableKeyRepeat(0, 0);

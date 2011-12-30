@@ -26,6 +26,8 @@ extern bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS];
 extern bool rr_changed_buttons[RR_SDL_MAX_BUTTONS];
 extern struct RRvec2 rr_abs_mouse;
 extern struct RRvec2 rr_rel_mouse;
+extern struct RRvec2 rr_abs_screen_mouse;
+extern struct RRvec2 rr_rel_screen_mouse;
 extern bool rr_mouse_moved;
 extern bool rr_key_pressed;
 extern bool rr_button_pressed;
@@ -41,6 +43,7 @@ void rr_set_base_horizontal(int width, int height);
 
 void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top);
 void rr_resize(int width, int height, int base);
+int rr_fullscreen_mode(int base);
 int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
 
 inline bool rr_pressing_key(unsigned int key)

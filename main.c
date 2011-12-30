@@ -1,6 +1,7 @@
 #include <GL/gl.h>
 #include <stdio.h>
 #include "rr.h"
+#include "rrgl.h"
 #include "rr_math.h"
 #include "rr_image.h"
 
@@ -10,21 +11,10 @@ int main(int argc, char **argv)
                 return -1;
         }
 
-        SDL_Surface *s = rrimg_load("square.png");
-        SDL_Surface *z = rrimg_display_format(s);
-        SDL_FreeSurface(s);
-        s = z;
-        unsigned int handle = rrtex_load(s);
-        SDL_FreeSurface(s);
+        unsigned int handle = rrteximg_load("square.png");
 
-        struct RRvec2 screen_mouse;
-        struct RRvec2 screen_mouse_rel;
         while(rr_running) {
                 rr_begin_frame();
-                screen_mouse = rr_transform_vect(rr_screen_transform,
-                                rr_abs_mouse); 
-                screen_mouse_rel = rr_transformR_vect(rr_screen_transform,
-                                rr_rel_mouse); 
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 rr_begin_scene();
@@ -59,7 +49,7 @@ int main(int argc, char **argv)
                 glEnd();
                 */
 
-                glBindTexture(GL_TEXTURE_2D, handle);
+                rrgl_bind_texture(handle);
                 glBegin(GL_QUADS);
                 glColor3ub(0xFF, 0xFF, 0);
                 glTexCoord2f(0, 1);
@@ -68,7 +58,7 @@ int main(int argc, char **argv)
                 glTexCoord2f(0, 0);
                 glVertex2i(-100, 100);
                 glTexCoord2f(1, 0);
-                glVertex2i(screen_mouse.x, screen_mouse.y);
+                glVertex2i(rr_abs_screen_mouse.x, rr_abs_screen_mouse.y);
                 glTexCoord2f(1, 1);
                 glVertex2i(100, -100);
                 glEnd();
