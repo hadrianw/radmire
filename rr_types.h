@@ -22,18 +22,14 @@ struct RRvec2 {
         RRfloat x;
         RRfloat y;
 };
-static const struct RRvec2 rr_vec2_zero = {0.0f, 0.0f};
+extern const struct RRvec2 rr_vec2_zero;
 
 struct RRtransform {
         struct RRvec2 col1;
         struct RRvec2 col2;
         struct RRvec2 pos;
 };
-static const struct RRtransform rr_transform_identity = {
-        {1.0f, 0.0f},
-        {0.0f, 1.0f},
-        {0.0f, 0.0f}
-};
+extern const struct RRtransform rr_transform_identity;
 
 struct RRcolor {
         uint8_t red;
@@ -41,9 +37,10 @@ struct RRcolor {
         uint8_t blue;
         uint8_t alpha;
 };
-static const struct RRcolor rr_white = {0xFF, 0xFF, 0xFF, 0xFF};
-static const struct RRcolor rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
-static const struct RRcolor rr_red = {0xFF, 0x00, 0x00, 0xFF};
+extern const struct RRcolor rr_white;
+extern const struct RRcolor rr_magenta;
+extern const struct RRcolor rr_red;
+extern const struct RRcolor rr_green;
 
 struct RRmesh {
         struct RRvec2 *vertices;
