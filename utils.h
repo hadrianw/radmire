@@ -10,3 +10,6 @@ void rr_fatal(const char *file, int line, const char *function, const char *form
 void rr_error(const char *file, int line, const char *function, const char *format, ...);
 void rr_warn(const char *file, int line, const char *function, const char *format, ...);
 void rr_info(const char *format, ...);
+
+#define LENGTH(X) (sizeof X / sizeof X[0])
+

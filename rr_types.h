@@ -23,6 +23,15 @@ struct RRvec2 {
         RRfloat y;
 };
 extern const struct RRvec2 rr_vec2_zero;
+extern const struct RRvec2 rr_vec2_top_left;
+extern const struct RRvec2 rr_vec2_top_center;
+extern const struct RRvec2 rr_vec2_top_right;
+extern const struct RRvec2 rr_vec2_middle_left;
+extern const struct RRvec2 rr_vec2_center;
+extern const struct RRvec2 rr_vec2_middle_right;
+extern const struct RRvec2 rr_vec2_bottom_left;
+extern const struct RRvec2 rr_vec2_bottom_center;
+extern const struct RRvec2 rr_vec2_bottom_right;
 
 struct RRtransform {
         struct RRvec2 col1;

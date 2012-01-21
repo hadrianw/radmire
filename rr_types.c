@@ -2,6 +2,18 @@
 
 const struct RRvec2 rr_vec2_zero = {0.0f, 0.0f};
 
+const struct RRvec2 rr_vec2_top_left      = {0.0f, 0.0f};
+const struct RRvec2 rr_vec2_top_center    = {0.5f, 0.0f};
+const struct RRvec2 rr_vec2_top_right     = {1.0f, 0.0f};
+
+const struct RRvec2 rr_vec2_middle_left   = {0.0f, 0.5f};
+const struct RRvec2 rr_vec2_center        = {0.5f, 0.5f};
+const struct RRvec2 rr_vec2_middle_right  = {1.0f, 0.5f};
+
+const struct RRvec2 rr_vec2_bottom_left   = {0.0f, 1.0f};
+const struct RRvec2 rr_vec2_bottom_center = {0.5f, 1.0f};
+const struct RRvec2 rr_vec2_bottom_right  = {1.0f, 1.0f};
+
 const struct RRtransform rr_transform_identity = {
         {1.0f, 0.0f},
         {0.0f, 1.0f},

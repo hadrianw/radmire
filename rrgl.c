@@ -28,7 +28,7 @@ GLuint active_texture = 0;
 void rrgl_init(void)
 {
         glEnableClientState(GL_VERTEX_ARRAY);
-        //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glEnableClientState(GL_COLOR_ARRAY);
 }
 
@@ -67,6 +67,10 @@ void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count)
         else
                 for(i = 0; i < count; ++i)
                         batch_colors[batch_count + i] = color;
+        if(texcoords)
+                memcpy(batch_texcoords + batch_count, texcoords + first,
+                                sizeof(*texcoords) * count);
+
         batch_count += count;
 }
 
@@ -91,13 +95,49 @@ void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
         else
                 for(i = 0; i < count; ++i)
                         batch_colors[batch_count + i] = color;
+        if(texcoords)
+                for(i = 0; i < count; ++i)
+                        batch_texcoords[batch_count + i]
+                                = texcoords[indices[i]];
+
         batch_count += count;
+}
+
+void rrgl_draw_rect(const struct RRvec2 *size, const struct RRvec2 *align)
+{
+        if(!size)
+                return;
+
+        if(!align)
+                align = &rr_vec2_center;
+        /* 3 ,--, 2
+             | /|
+             |/ |
+           0 '--' 1 */
+        struct RRvec2 vs[4] = {
+                {size->x *       - align->x , size->y * (align->y - 1.0f)},
+                {size->x * (1.0f - align->x), size->y * (align->y - 1.0f)},
+                {size->x * (1.0f - align->x), size->y *  align->y        },
+                {size->x *       - align->x , size->y *  align->y        }
+        };
+        struct RRvec2 ts[4] = {
+                {0.0f, 1.0f},
+                {1.0f, 1.0f},
+                {1.0f, 0.0f},
+                {0.0f, 0.0f}
+        };
+        const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
+
+        rrgl_vertex_pointer(vs);
+        rrgl_color_pointer(NULL);
+        rrgl_texcoord_pointer(ts);
+        rrgl_draw_elements(GL_TRIANGLES, LENGTH(is), is);
 }
 
 void rrgl_flush()
 {
         glVertexPointer(2, RRGL_FLOAT_TYPE, 0, batch_vertices);
-        //glTexCoordPointer(2, RRGL_FLOAT_TYPE, 0, batch_texcoords);
+        glTexCoordPointer(2, RRGL_FLOAT_TYPE, 0, batch_texcoords);
         glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch_colors);
 
         glDrawArrays(batch_mode, 0, batch_count);
