@@ -12,7 +12,6 @@ int main(int argc, char **argv)
         }
 
         unsigned int handle = rrteximg_load("square.png");
-        struct RRvec2 siz = {50, 50};
 
         while(rr_running) {
                 rr_begin_frame();
