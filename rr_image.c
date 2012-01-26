@@ -4,6 +4,7 @@
 #include <SDL/SDL_image.h>
 #include "physfsrwops.h"
 #include "rr.h"
+#include "utils.h"
 
 SDL_Surface *rrimg_load(const char *path)
 {
@@ -75,24 +76,91 @@ out_orig:
 }
 
 typedef struct ImgNode {
-        SDL_Rect clip;
+        struct RRimg image;
         struct ImgNode *parent;
         struct ImgNode *children[2];
 } ImgNode;
 
+float Border = 1.0f;
+
+ImgNode *imgnode_insert(ImgNode *node, SDL_Surface *surface)
+{
+	//if we're not a leaf then insert
+	if(node->children[0] && node->children[1]) {
+		ImgNode *next = NULL;
+                for(int i = 0; i < LENGTH(node->children) && !next; i++)
+                        next = imgnode_insert(node->children[i], surface);
+                return next;
+	}
+
+        // if there's already a image here, return
+        if(node->image.surface)
+                return NULL;
+
+        // if we're too small, return
+        if( surface->w + Border > node->image.srcrect.w || surface->h + Border > node->image.srcrect.h ) return NULL;
+
+        // if we're just right, accept
+        if( surface->w + Border == node->image.srcrect.w && surface->h + Border == node->image.srcrect.h ) {
+                node->image.surface = surface;
+                node->image.srcrect.w -= Border;
+                node->image.srcrect.h -= Border;
+                return node;
+        }
+
+        // otherwise, gotta split this node and create some kids
+        for(int i = 0; i < LENGTH(node->children); i++) {
+                node->children[i] = calloc(1, sizeof(ImgNode));
+                node->children[i]->parent = node;
+        }
+
+        SDL_Rect dst = node->image.srcrect;
+        SDL_Rect rest = node->image.srcrect;
+        if( dst.w - surface->w > dst.h - surface->h ) {
+                dst.w = surface->w + Border;
+                rest.x += dst.w;
+                rest.w -= dst.w;
+        } else {
+                dst.h = surface->h + Border;
+                rest.y += dst.h;
+                rest.h -= dst.h;
+        }
+        node->children[0]->image.srcrect = dst;
+        node->children[1]->image.srcrect = rest;
+
+        // insert into first child we created
+        return imgnode_insert(node->children[0], surface);
+}
+
+void imgnode_free(ImgNode *node)
+{
+        if(!node)
+                return;
+
+        for(int i = 0; i < LENGTH(node->children); i++)
+                imgnode_free(node->children[i]);
+
+        if(node->parent)
+                free(node);
+}
+
 // Insert source surfaces to destination, exit on first failing
-// Source surfaces are modified!
-unsigned int rrimg_atlas(SDL_Surface *srcs, unsigned int nsrcs, SDL_Surface *dst)
+struct RRimg *rrimg_atlas(SDL_Surface **srcs, unsigned int nsrcs, SDL_Surface *dst)
 {
         unsigned int i = 0;
-        ImgNode rootnode;
+        struct RRimg *dsts = malloc(nsrcs * sizeof(struct RRimg));
+        ImgNode root = { .image = {NULL, {0, 0, dst->w, dst->h}} };
+        ImgNode *current = NULL;
 
         for(; i < nsrcs; i++) {
-                /*if(imgnode_insert(rootnode, srcs[i])) {
-                        srcs[i]
+                current = imgnode_insert(&root, srcs[i]);
+                if(current) {
+                        dsts[i] = current->image;
+                        dst->refcount++;
                 } else
-                        break;*/
+                        break;
         }
-        return 0;
+        imgnode_free(&root);
+        return dsts;
 }
 
