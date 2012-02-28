@@ -1,7 +1,5 @@
 include config.mk
 
-SRCS := $(filter-out $(EXCLUDE),$(SRCS))
-
 all: $(TARGET)
 
 $(TARGET): $(SRCS:.c=.o)
@@ -10,7 +8,7 @@ $(TARGET): $(SRCS:.c=.o)
 
 -include $(SRCS:.c=.d)
 
-%.o: %.c config.mk
+.c.o: config.mk
 	@echo CC -c $<
 	@$(CC) -c $< $(CFLAGS)
 
