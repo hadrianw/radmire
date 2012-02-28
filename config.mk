@@ -1,6 +1,5 @@
 TARGET = game-c
 SRCS := $(wildcard *.c)
-EXCLUDE =
 
 # includes and libs
 INCS = `pkg-config --cflags sdl SDL_image`

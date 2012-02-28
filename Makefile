@@ -1,7 +1,5 @@
 include config.mk
 
-SRCS := $(filter-out $(EXCLUDE),$(SRCS))
-
 all: $(TARGET)
 
 $(TARGET): $(SRCS:.c=.o)
