@@ -11,7 +11,7 @@ struct RRArray {
 void rrarray_resize(struct RRArray *array, size_t nmemb)
 {
         size_t nalloc = to_pow2(nmemb);
-        if(nmemb < array->nmemb)
+        if(nmemb < array->nmemb && array->nalloc > nalloc * 2)
                 nalloc *= 2;
         array->ptr = realloc(array->ptr, nalloc * array->size);
         array->nalloc = nalloc;
