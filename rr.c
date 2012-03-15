@@ -242,9 +242,36 @@ void rr_end_scene(void)
         SDL_GL_SwapBuffers();
 }
 
+#include <time.h>
+//#include <sys/time.h>
+
+static unsigned int rr_fps = 60;
+static RRfloat rr_step = 0;
+static clock_t rr_time_step;
+static clock_t rr_time;
+static clock_t rr_time_prev;
+static clock_t rr_time_diff;
+static int ticks = 0;
+
 void rr_end_frame(void)
 {
-        usleep(10000);
+        rr_time = clock();
+        rr_time_diff = rr_time - rr_time_prev;
+
+        if(rr_time_diff < rr_time_step) {
+                rr_time_diff = rr_time_step - rr_time_diff;
+                struct timeval tv = {
+                        .tv_usec = rr_time_diff * 1000000 / CLOCKS_PER_SEC
+                };
+                select(0, 0, 0, 0, &tv);
+                ticks++;
+                if(ticks == rr_fps) {
+                        printf("%lf\n", rr_time_diff / (double)CLOCKS_PER_SEC);
+                        ticks = 0;
+                }
+        }
+
+        rr_time_prev = rr_time;
 }
 
 int rr_init(int argc, char **argv)
@@ -276,6 +303,9 @@ int rr_init(int argc, char **argv)
         rrgl_init();
         rrgl_color(rr_white);
         rrgl_load_transform(&rr_transform_identity);
+
+        rr_step = 1 / rr_fps;
+        rr_time_step = CLOCKS_PER_SEC / rr_fps;
 
         rr_running = true;
         return 0;
