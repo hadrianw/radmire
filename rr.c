@@ -1,8 +1,8 @@
 #include "utils.h"
 
 #include <physfs.h>
-
-#include <unistd.h>
+#include <time.h>
+#include <sys/select.h>
 
 #include "rrgl.h"
 #include "rr_math.h"
@@ -241,9 +241,6 @@ void rr_end_scene(void)
         SDL_GL_SwapBuffers();
 }
 
-#include <time.h>
-//#include <sys/time.h>
-
 static unsigned int rr_fps = 60;
 static RRfloat rr_step = 0;
 static clock_t rr_time_step;
@@ -286,6 +283,7 @@ int rr_init(int argc, char **argv)
         //if(rr_fullscreen_mode(RR_DIAGONAL))
                 goto out_sdl;
 
+        SDL_WM_SetCaption("Radmire", NULL);
         SDL_EnableKeyRepeat(0, 0);
         for(unsigned int i=0; i < SDLK_LAST; ++i)
                 rr_pressed_keys[i] = false;
@@ -305,6 +303,7 @@ int rr_init(int argc, char **argv)
 
         rr_step = 1 / rr_fps;
         rr_time_step = CLOCKS_PER_SEC / rr_fps;
+        rr_time_prev = clock();
 
         rr_running = true;
         return 0;
