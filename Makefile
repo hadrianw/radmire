@@ -6,9 +6,11 @@ $(TARGET): $(SRCS:.c=.o)
 	@echo CC -o $@
 	@$(CC) -o $@ $+ $(LDFLAGS)
 
-include $(SRCS:.c=.d)
+-include $(SRCS:.c=.d)
 
-.c.o: config.mk
+$(SRCS:.c=.o): config.mk
+
+.c.o:
 	@echo CC -c $<
 	@$(CC) -c $< $(CFLAGS)
 
