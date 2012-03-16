@@ -1,4 +1,4 @@
-#include <GL/gl.h>
+#include <SDL/SDL_opengl.h>
 #include <stdio.h>
 #include "rr.h"
 #include "rrgl.h"

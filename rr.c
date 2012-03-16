@@ -1,7 +1,6 @@
 #include "utils.h"
 
 #include <physfs.h>
-#include <GL/glu.h>
 
 #include <unistd.h>
 
