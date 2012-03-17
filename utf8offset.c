@@ -3,8 +3,8 @@
 
 struct Level {
         size_t offset;
-	unsigned char mask;
-	unsigned char val;
+	char mask;
+	char val;
 };
 
 static struct Level levels[] = {
@@ -13,8 +13,8 @@ static struct Level levels[] = {
 	{1 << 11, 0xF0, 0xE0}
         // last 1 << 16
 };
-static unsigned char BMASK = 0xC0;
-static unsigned char BVAL= 0x80;
+static char BMASK = 0xC0;
+static char BVAL= 0x80;
 
 size_t utf8offset(const char *buff, size_t *offset)
 {
