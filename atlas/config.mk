@@ -1,6 +1,6 @@
 # includes and libs
 INCS = `pkg-config --cflags sdl SDL_image`
-LIBS = `pkg-config --libs sdl SDL_image`
+LIBS = `pkg-config --libs-only-L --libs-only-l sdl SDL_image`
 
 # flags
 CPPFLAGS = #-D
