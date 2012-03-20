@@ -4,13 +4,21 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define ispow2(x) ((x & (x - 1)) == 0)
+#define ispow2(x) (((x) & ((x) - 1)) == 0)
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 void usage()
 {
 	fputs("usage: atlas -s <size> [-vcu] [-f <format><bpp>] -o target source ...\n"
 	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...\n", stderr);
 	exit(EXIT_FAILURE);
+}
+
+int imgcomp(const void* a, const void* b)
+{
+	const SDL_Surface *A = a;
+	const SDL_Surface *B = b;
+	return MAX(A->w, A->h) - MAX(B->w, B->h);
 }
 
 unsigned int width = 0;
@@ -63,7 +71,7 @@ int main(int argc, char **argv)
         }
 
 	if(sortinput)
-		//qsort(imgs, sizeof(imgs)
+		qsort(imgs, ninput, sizeof(imgs), imgcomp);
 
 	ret = 0;
 free:
