@@ -70,11 +70,7 @@ int main(int argc, char **argv)
 	   || !targetname || ninput <= 0 || !input)
 		usage();
 
-        if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-                fputs("atlas: SDL_Init failed\n", stderr);
-                return ret;
-        }
-        struct Img *imgs = calloc(ninput, sizeof(struct Img*));
+        struct Img *imgs = calloc(ninput, sizeof(struct Img));
         for(int i = 0; i < ninput; i++) {
 		if(verbose)
 			printf("loading %s\n", input[i]);
@@ -104,6 +100,5 @@ free:
                 SDL_FreeSurface(imgs[i].surf);
         }
         free(imgs);
-        SDL_Quit();
         return ret;
 }
