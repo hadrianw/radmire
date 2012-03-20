@@ -3,4 +3,5 @@
 *.swp
 game-c
 gmon.out
+atlas/atlas
 test/test
