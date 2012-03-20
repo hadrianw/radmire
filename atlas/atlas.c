@@ -1,20 +1,21 @@
 #include <SDL/SDL_video.h>
 #include <SDL/SDL_image.h>
-#undef main
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define ispow2(x) ((x & (x - 1)) == 0)
+
 void usage()
 {
 	fputs("usage: atlas -s <size> [-vcu] [-f <format><bpp>] -o target source ...\n"
-	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...", stderr);
+	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...\n", stderr);
 	exit(EXIT_FAILURE);
 }
 
 unsigned int width = 0;
 unsigned int height = 0;
-bool ignorefail = false;
+bool failstop = true;
 bool sortinput = true;
 bool verbose = false;
 const char *targetname  = NULL;
@@ -27,7 +28,7 @@ int main(int argc, char **argv)
 
 	for(int i = 1; i < argc; i++) {
 		if(!strcmp(argv[i], "-c"))
-			ignorefail = true;
+			failstop = false;
 		else if(!strcmp(argv[i], "-u"))
 			sortinput = false;
 		else if(!strcmp(argv[i], "-v"))
@@ -49,24 +50,20 @@ int main(int argc, char **argv)
 		} else
 			usage();
 	}
-	printf("%d %s\n", ninput, targetname);
-	if(input[0])
-		puts(input[0]);
+	if(!width || !height || !ispow2(width) || !ispow2(height)
+	   || !targetname || ninput <= 0 || !input)
+		usage();
 
         SDL_Surface **imgs = calloc(ninput, sizeof(SDL_Surface*));
-        SDL_Surface *img = NULL;
         for(int i = 0; i < ninput; i++) {
-                img = IMG_Load(input[i]);
-                if(img)
-                        imgs[i - 1] = img;
-                else {
+                if( !(imgs[i] = IMG_Load(input[i])) && failstop) {
                         ninput = i;
-			puts("dupa zimna");
                         goto free;
                 }
         }
 
-        //qsort(imgs, sizeof(imgs)
+	if(sortinput)
+		//qsort(imgs, sizeof(imgs)
 
 	ret = 0;
 free:
