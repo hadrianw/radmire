@@ -14,11 +14,19 @@ void usage()
 	exit(EXIT_FAILURE);
 }
 
-int imgcomp(const void* a, const void* b)
+struct Img {
+	SDL_Surface *surf;
+	const char *name;
+};
+
+int imgcomp(const void* b, const void* a)
 {
-	const SDL_Surface *A = a;
-	const SDL_Surface *B = b;
-	return MAX(A->w, A->h) - MAX(B->w, B->h);
+	const SDL_Surface *A = ((struct Img*)a)->surf;
+	const SDL_Surface *B = ((struct Img*)b)->surf;
+	if(!A || !B)
+		return (A ? 1 : 0) - (B ? 1 : 0);
+	else
+		return MAX(A->w, A->h) - MAX(B->w, B->h);
 }
 
 unsigned int width = 0;
@@ -62,21 +70,34 @@ int main(int argc, char **argv)
 	   || !targetname || ninput <= 0 || !input)
 		usage();
 
-        SDL_Surface **imgs = calloc(ninput, sizeof(SDL_Surface*));
+        struct Img *imgs = calloc(ninput, sizeof(struct Img*));
         for(int i = 0; i < ninput; i++) {
-                if( !(imgs[i] = IMG_Load(input[i])) && failstop) {
-                        ninput = i;
-                        goto free;
+		if(verbose)
+			printf("loading %s\n", input[i]);
+		imgs[i].name = input[i];
+                if( !(imgs[i].surf = IMG_Load(input[i])) ) {
+			fprintf(stderr, "atlas: couldn't load %s\n", input[i]);
+			if(failstop) {
+				ninput = i;
+				goto free;
+			}
                 }
         }
 
-	if(sortinput)
-		qsort(imgs, ninput, sizeof(imgs), imgcomp);
+	if(sortinput) {
+		qsort(imgs, ninput, sizeof(imgs[0]), imgcomp);
+		if(verbose) {
+			puts("sort order:");
+			for(int i = 0; i < ninput; i++)
+				puts(imgs[i].name);
+
+		}
+	}
 
 	ret = 0;
 free:
         for(int i = 0; i < ninput; i++) {
-                SDL_FreeSurface(imgs[i]);
+                SDL_FreeSurface(imgs[i].surf);
         }
         free(imgs);
         return ret;
