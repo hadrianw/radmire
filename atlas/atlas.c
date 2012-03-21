@@ -14,13 +14,14 @@ struct Img {
 };
 
 struct ImgNode {
-	struct Img *image;
+	SDL_Surface *image;
 	SDL_Rect rect;
         struct ImgNode *parent;
         struct ImgNode *children[2];
 };
 
 static int imgcomp(const void* b, const void* a);
+static struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface);
 static void usage();
 
 static bool failstop = true;
@@ -91,6 +92,39 @@ int main(int argc, char **argv)
 		}
 	}
 
+        unsigned int i = 0;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	Uint32 rmsk = 0xff000000;
+	Uint32 gmsk = 0x00ff0000;
+	Uint32 bmsk = 0x0000ff00;
+	Uint32 amsk = 0x000000ff;
+#else
+	Uint32 rmsk = 0x000000ff;
+	Uint32 gmsk = 0x0000ff00;
+	Uint32 bmsk = 0x00ff0000;
+	Uint32 amsk = 0xff000000;
+#endif
+	SDL_Surface *target = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
+	                                           rmsk, gmsk, bmsk, amsk);
+        struct ImgNode root = { .rect = {0, 0, target->w, target->h} };
+        struct ImgNode *node = NULL;
+
+	float invwidth = 1.0f / width;
+	float invheight = 1.0f / height;
+        for(; i < ninput; i++) {
+		if(imgs[i].surf) {
+			node = imgnode_insert(&root, imgs[i].surf);
+			if(node) {
+				printf("%s %f %f %f %f\n", imgs[i].name,
+				       node->rect.x * invwidth, node->rect.y * invheight,
+				       node->rect.w * invwidth, node->rect.h * invheight);
+			} else if(failstop)
+				goto free;
+		} else if(sortinput)
+			break;
+        }
+        //imgnode_free(&root);
+
 	ret = 0;
 free:
         for(int i = 0; i < ninput; i++) {
@@ -108,6 +142,52 @@ int imgcomp(const void* b, const void* a)
 		return (A ? 1 : 0) - (B ? 1 : 0);
 	else
 		return MAX(A->w, A->h) - MAX(B->w, B->h);
+}
+
+struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface)
+{
+	//if we're not a leaf then insert
+	if(node->children[0] && node->children[1]) {
+		struct ImgNode *next = NULL;
+                for(int i = 0; i < LENGTH(node->children) && !next; i++)
+                        next = imgnode_insert(node->children[i], surface);
+                return next;
+	}
+
+        if(node->image
+	   || surface->w + border > node->rect.w
+	   || surface->h + border > node->rect.h)
+		return NULL;
+
+        if(surface->w + border == node->rect.w &&
+	   surface->h + border == node->rect.h) {
+                node->image = surface;
+                node->rect.w -= border;
+                node->rect.h -= border;
+                return node;
+        }
+
+        // otherwise, gotta split this node and create some kids
+        for(int i = 0; i < LENGTH(node->children); i++) {
+                node->children[i] = calloc(1, sizeof(struct ImgNode));
+                node->children[i]->parent = node;
+        }
+
+        SDL_Rect dst = node->rect;
+        SDL_Rect rest = node->rect;
+        if( dst.w - surface->w > dst.h - surface->h ) {
+                dst.w = surface->w + border;
+                rest.x += dst.w;
+                rest.w -= dst.w;
+        } else {
+                dst.h = surface->h + border;
+                rest.y += dst.h;
+                rest.h -= dst.h;
+        }
+        node->children[0]->rect = dst;
+        node->children[1]->rect = rest;
+
+        return imgnode_insert(node->children[0], surface);
 }
 
 void usage()
