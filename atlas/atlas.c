@@ -1,5 +1,6 @@
 #include <SDL/SDL_video.h>
 #include <SDL/SDL_image.h>
+#include "IMG_savepng.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -79,7 +80,8 @@ int main(int argc, char **argv)
 				ninput = i;
 				goto free;
 			}
-                }
+                } else
+			SDL_SetAlpha(imgs[i].surf, 0, SDL_ALPHA_OPAQUE);
         }
 
 	if(sortinput) {
@@ -106,7 +108,6 @@ int main(int argc, char **argv)
 #endif
 	SDL_Surface *target = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
 	                                           rmsk, gmsk, bmsk, amsk);
-	SDL_FillRect(target, NULL, 0xFFFFFFFF);
         struct ImgNode root = { .rect = {0, 0, target->w, target->h} };
         struct ImgNode *node = NULL;
 
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
 		} else if(sortinput)
 			break;
         }
-	printf("err: %d\n", SDL_SaveBMP(target, targetname));
+	printf("err: %d\n", IMG_SavePNG(targetname, target, 9));
 
         //imgnode_free(&root);
 

@@ -1,6 +1,6 @@
 include config.mk
 
-SRC = atlas.c
+SRC = atlas.c IMG_savepng.c
 OBJ = ${SRC:.c=.o}
 
 all: atlas
