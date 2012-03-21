@@ -4,39 +4,33 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define ispow2(x) (((x) & ((x) - 1)) == 0)
-#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define ispow2(X) (((X) & ((X) - 1)) == 0)
+#define LENGTH(X) (sizeof(X) / sizeof (X)[0])
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
-void usage()
-{
-	fputs("usage: atlas -s <size> [-vcu] [-f <format><bpp>] -o target source ...\n"
-	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...\n", stderr);
-	exit(EXIT_FAILURE);
-}
+static int imgcomp(const void* b, const void* a);
+static void usage();
 
 struct Img {
 	SDL_Surface *surf;
 	const char *name;
 };
 
-int imgcomp(const void* b, const void* a)
-{
-	const SDL_Surface *A = ((struct Img*)a)->surf;
-	const SDL_Surface *B = ((struct Img*)b)->surf;
-	if(!A || !B)
-		return (A ? 1 : 0) - (B ? 1 : 0);
-	else
-		return MAX(A->w, A->h) - MAX(B->w, B->h);
-}
+struct ImgNode {
+	struct Img *image;
+	SDL_Rect rect;
+        struct ImgNode *parent;
+        struct ImgNode *children[2];
+};
 
-unsigned int width = 0;
-unsigned int height = 0;
-bool failstop = true;
-bool sortinput = true;
-bool verbose = false;
-const char *targetname  = NULL;
-int ninput = 0;
-char **input = NULL;
+static unsigned int width = 0;
+static unsigned int height = 0;
+static bool failstop = true;
+static bool sortinput = true;
+static bool verbose = false;
+static const char *targetname  = NULL;
+static char **input = NULL;
+static int ninput = 0;
 
 int main(int argc, char **argv)
 {
@@ -102,3 +96,21 @@ free:
         free(imgs);
         return ret;
 }
+
+int imgcomp(const void* b, const void* a)
+{
+	const SDL_Surface *A = ((struct Img*)a)->surf;
+	const SDL_Surface *B = ((struct Img*)b)->surf;
+	if(!A || !B)
+		return (A ? 1 : 0) - (B ? 1 : 0);
+	else
+		return MAX(A->w, A->h) - MAX(B->w, B->h);
+}
+
+void usage()
+{
+	fputs("usage: atlas -s <size> [-vcu] [-f <format><bpp>] -o target source ...\n"
+	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...\n", stderr);
+	exit(EXIT_FAILURE);
+}
+
