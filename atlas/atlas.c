@@ -26,6 +26,7 @@ static void usage();
 static bool failstop = true;
 static bool sortinput = true;
 static bool verbose = false;
+static int border = 1;
 static unsigned int width = 0;
 static unsigned int height = 0;
 static const char *targetname  = NULL;
@@ -45,7 +46,9 @@ int main(int argc, char **argv)
 			verbose = true;
 		else if(i+1 == argc)
 			usage();
-		else if(!strcmp(argv[i], "-s")) {
+		else if(!strcmp(argv[i], "-b")) {
+			border = atoi(argv[++i]);
+		} else if(!strcmp(argv[i], "-s")) {
 			int ss = sscanf(argv[++i], "%ux%u", &width, &height);
 			if(ss == 1)
 				height = width;
@@ -60,7 +63,7 @@ int main(int argc, char **argv)
 		} else
 			usage();
 	}
-	if(!width || !height || !ispow2(width) || !ispow2(height)
+	if(border <= 0 || !width || !height || !ispow2(width) || !ispow2(height)
 	   || !targetname || ninput <= 0 || !input)
 		usage();
 
