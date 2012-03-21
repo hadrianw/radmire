@@ -106,6 +106,7 @@ int main(int argc, char **argv)
 #endif
 	SDL_Surface *target = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
 	                                           rmsk, gmsk, bmsk, amsk);
+	SDL_FillRect(target, NULL, 0xFFFFFFFF);
         struct ImgNode root = { .rect = {0, 0, target->w, target->h} };
         struct ImgNode *node = NULL;
 
@@ -115,14 +116,20 @@ int main(int argc, char **argv)
 		if(imgs[i].surf) {
 			node = imgnode_insert(&root, imgs[i].surf);
 			if(node) {
+				int e = SDL_BlitSurface(node->image, NULL, target, &node->rect);
+				printf("err %d\n", e);
 				printf("%s %f %f %f %f\n", imgs[i].name,
 				       node->rect.x * invwidth, node->rect.y * invheight,
 				       node->rect.w * invwidth, node->rect.h * invheight);
-			} else if(failstop)
+			} else if(failstop) {
+				fprintf(stderr, "atlas: couldn't fit %s\n", input[i]);
 				goto free;
+			}
 		} else if(sortinput)
 			break;
         }
+	printf("err: %d\n", SDL_SaveBMP(target, targetname));
+
         //imgnode_free(&root);
 
 	ret = 0;
