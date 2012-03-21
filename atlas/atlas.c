@@ -8,9 +8,6 @@
 #define LENGTH(X) (sizeof(X) / sizeof (X)[0])
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
-static int imgcomp(const void* b, const void* a);
-static void usage();
-
 struct Img {
 	SDL_Surface *surf;
 	const char *name;
@@ -23,11 +20,14 @@ struct ImgNode {
         struct ImgNode *children[2];
 };
 
-static unsigned int width = 0;
-static unsigned int height = 0;
+static int imgcomp(const void* b, const void* a);
+static void usage();
+
 static bool failstop = true;
 static bool sortinput = true;
 static bool verbose = false;
+static unsigned int width = 0;
+static unsigned int height = 0;
 static const char *targetname  = NULL;
 static char **input = NULL;
 static int ninput = 0;
