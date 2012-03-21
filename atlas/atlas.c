@@ -95,7 +95,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-        unsigned int i = 0;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	Uint32 rmsk = 0xff000000;
 	Uint32 gmsk = 0x00ff0000;
@@ -114,7 +113,7 @@ int main(int argc, char **argv)
 
 	float invwidth = 1.0f / width;
 	float invheight = 1.0f / height;
-        for(; i < ninput; i++) {
+        for(unsigned int i = 0; i < ninput; i++) {
 		if(imgs[i].surf) {
 			node = imgnode_insert(&root, imgs[i].surf);
 			if(node) {
@@ -126,8 +125,10 @@ int main(int argc, char **argv)
 				fprintf(stderr, "atlas: couldn't fit %s\n", input[i]);
 				goto free;
 			}
-		} else if(sortinput)
+		} else if(sortinput) {
+                        ninput = i;
 			break;
+                }
         }
 	IMG_SavePNG(targetname, target, 9);
 
