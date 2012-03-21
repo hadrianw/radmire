@@ -113,14 +113,17 @@ int main(int argc, char **argv)
 
 	float invwidth = 1.0f / width;
 	float invheight = 1.0f / height;
+        //char *specname = malloc();
+        //FILE *spec = fopen();
         for(unsigned int i = 0; i < ninput; i++) {
 		if(imgs[i].surf) {
 			node = imgnode_insert(&root, imgs[i].surf);
 			if(node) {
 				SDL_BlitSurface(node->image, NULL, target, &node->rect);
-				printf("%s %f %f %f %f\n", imgs[i].name,
+				printf("%f %f %f %f %s\n",
 				       node->rect.x * invwidth, node->rect.y * invheight,
-				       node->rect.w * invwidth, node->rect.h * invheight);
+				       node->rect.w * invwidth, node->rect.h * invheight,
+                                       imgs[i].name);
 			} else if(failstop) {
 				fprintf(stderr, "atlas: couldn't fit %s\n", input[i]);
 				goto free;
