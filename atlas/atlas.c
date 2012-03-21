@@ -22,6 +22,7 @@ struct ImgNode {
 };
 
 static int imgcomp(const void* b, const void* a);
+static void imgnode_free(struct ImgNode *node);
 static struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface);
 static void usage();
 
@@ -117,8 +118,7 @@ int main(int argc, char **argv)
 		if(imgs[i].surf) {
 			node = imgnode_insert(&root, imgs[i].surf);
 			if(node) {
-				int e = SDL_BlitSurface(node->image, NULL, target, &node->rect);
-				printf("err %d\n", e);
+				SDL_BlitSurface(node->image, NULL, target, &node->rect);
 				printf("%s %f %f %f %f\n", imgs[i].name,
 				       node->rect.x * invwidth, node->rect.y * invheight,
 				       node->rect.w * invwidth, node->rect.h * invheight);
@@ -129,9 +129,9 @@ int main(int argc, char **argv)
 		} else if(sortinput)
 			break;
         }
-	printf("err: %d\n", IMG_SavePNG(targetname, target, 9));
+	IMG_SavePNG(targetname, target, 9);
 
-        //imgnode_free(&root);
+        imgnode_free(&root);
 
 	ret = 0;
 free:
@@ -150,6 +150,18 @@ int imgcomp(const void* b, const void* a)
 		return (A ? 1 : 0) - (B ? 1 : 0);
 	else
 		return MAX(A->w, A->h) - MAX(B->w, B->h);
+}
+
+void imgnode_free(struct ImgNode *node)
+{
+        if(!node)
+                return;
+
+        for(int i = 0; i < LENGTH(node->children); i++)
+                imgnode_free(node->children[i]);
+
+        if(node->parent)
+                free(node);
 }
 
 struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface)
