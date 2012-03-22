@@ -45,7 +45,6 @@ static bool failstop = true;
 static bool sortinput = true;
 static bool verbose = false;
 static int border = 1;
-static int bitdepth = 32;
 static unsigned int width = 0;
 static unsigned int height = 0;
 static const char *targetname = NULL;
@@ -72,8 +71,6 @@ int main(int argc, char **argv)
 			usage();
 		else if(!strcmp(argv[i], "-b"))
 			border = atoi(argv[++i]);
-		else if(!strcmp(argv[i], "-d"))
-			bitdepth = atoi(argv[++i]);
 		else if(!strcmp(argv[i], "-s")) {
 			int ss = sscanf(argv[++i], "%ux%u", &width, &height);
 			if(ss == 1)
@@ -89,7 +86,7 @@ int main(int argc, char **argv)
 		} else
 			usage();
 	}
-	if(border <= 0 || (bitdepth != 16 && bitdepth != 32)
+	if(border <= 0
 	   || !width || !height || !ispow2(width) || !ispow2(height)
 	   || !targetname || nsources <= 0 || !sourcename)
 		usage();
@@ -118,9 +115,8 @@ void cleanup(int status)
         imgnode_free(&root);
 	SDL_FreeSurface(target);
 	free(filename);
-        for(int i = 0; i < nsources; i++) {
+        for(int i = 0; i < nsources; i++)
                 SDL_FreeSurface(source[i].image);
-        }
         free(source);
 
 	if(status)
@@ -142,7 +138,11 @@ void genatlas()
 {
 	openspec();
 
-	target = createsurface(width, height, bitdepth);
+	target = createsurface(width, height, 32);
+	if(!target) {
+		fputs("atlas: couldn't create target surface\n", stderr);
+		cleanup(EXIT_FAILURE);
+	}
         root.rect.w = target->w;
         root.rect.h = target->h;
 
@@ -166,7 +166,10 @@ void genatlas()
 				cleanup(EXIT_FAILURE);
 			continue;
 		}
-		SDL_BlitSurface(node->image, NULL, target, &node->rect);
+		if(SDL_BlitSurface(node->image, NULL, target, &node->rect)) {
+			fprintf(stderr, "atlas: couldn't blit %s\n", source[i].name);
+			cleanup(EXIT_FAILURE);
+		}
 		fprintf(spec, "%f %f %f %f %s\n",
 		        node->rect.x * invwidth, node->rect.y * invheight,
 		        node->rect.w * invwidth, node->rect.h * invheight,
@@ -284,7 +287,10 @@ void saveimage()
 	strcat(filename, imageext);
 	if(verbose)
 		printf("saving image %s\n", filename);
-	IMG_SavePNG(filename, target, 9);
+	if(IMG_SavePNG(filename, target, 9)) {
+		fprintf(stderr, "atlas: couldn't save image %s\n", filename);
+		cleanup(EXIT_FAILURE);
+	}
 }
 
 void usage()
