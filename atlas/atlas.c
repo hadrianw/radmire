@@ -32,9 +32,12 @@ static bool verbose = false;
 static int border = 1;
 static unsigned int width = 0;
 static unsigned int height = 0;
-static const char *targetname  = NULL;
+static const char *targetname = NULL;
 static char **input = NULL;
 static int ninput = 0;
+
+static const char specext[] = ".atlas";
+static const char targetext[] = ".png";
 
 int main(int argc, char **argv)
 {
@@ -70,7 +73,7 @@ int main(int argc, char **argv)
 	   || !targetname || ninput <= 0 || !input)
 		usage();
 
-        struct Img *imgs = calloc(ninput, sizeof(struct Img));
+        struct Img *imgs = calloc(ninput, sizeof(imgs[0]));
         for(int i = 0; i < ninput; i++) {
 		if(verbose)
 			printf("loading %s\n", input[i]);
@@ -95,6 +98,17 @@ int main(int argc, char **argv)
 		}
 	}
 
+	const int len = strlen(targetname) + MAX(LENGTH(specext), LENGTH(targetext));
+        char *filename = malloc(len * sizeof(filename[0]));
+	strcpy(filename, targetname);
+	strcat(filename, specext);
+	if(verbose)
+		printf("saving spec %s\n", filename);
+        FILE *spec = fopen(filename, "w+b");
+	if(!spec) {
+		fprintf(stderr, "atlas: couldn't open %s\n", filename);
+		goto free_filename;
+	}
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	Uint32 rmsk = 0xff000000;
 	Uint32 gmsk = 0x00ff0000;
@@ -113,31 +127,36 @@ int main(int argc, char **argv)
 
 	float invwidth = 1.0f / width;
 	float invheight = 1.0f / height;
-        //char *specname = malloc();
-        //FILE *spec = fopen();
         for(unsigned int i = 0; i < ninput; i++) {
 		if(imgs[i].surf) {
 			node = imgnode_insert(&root, imgs[i].surf);
 			if(node) {
 				SDL_BlitSurface(node->image, NULL, target, &node->rect);
-				printf("%f %f %f %f %s\n",
+				fprintf(spec, "%f %f %f %f %s\n",
 				       node->rect.x * invwidth, node->rect.y * invheight,
 				       node->rect.w * invwidth, node->rect.h * invheight,
                                        imgs[i].name);
 			} else if(failstop) {
 				fprintf(stderr, "atlas: couldn't fit %s\n", input[i]);
-				goto free;
+				goto free_atlas;
 			}
 		} else if(sortinput) {
                         ninput = i;
 			break;
                 }
         }
+	fclose(spec);
+	strcpy(filename + len - LENGTH(specext), targetext);
+	if(verbose)
+		printf("saving image %s\n", filename);
 	IMG_SavePNG(targetname, target, 9);
-
-        imgnode_free(&root);
-
 	ret = 0;
+
+free_atlas:
+        imgnode_free(&root);
+	SDL_FreeSurface(target);
+free_filename:
+	free(filename);
 free:
         for(int i = 0; i < ninput; i++) {
                 SDL_FreeSurface(imgs[i].surf);
