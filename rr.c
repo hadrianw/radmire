@@ -4,8 +4,6 @@
 #include <time.h>
 #include <sys/select.h>
 
-#include "rrgl.h"
-#include "rr_math.h"
 #include "rr.h"
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN

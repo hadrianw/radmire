@@ -1,4 +1,3 @@
-#include "rr_types.h"
 #include <SDL/SDL_opengl.h>
 
 void rrgl_init(void);

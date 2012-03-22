@@ -1,4 +1,3 @@
-#include "rr_types.h"
 #include <math.h>
 
 #ifdef RR_DOUBLE_FLOAT

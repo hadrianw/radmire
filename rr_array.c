@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include "rr_math.h"
 #include "rr_types.h"
+#include "rr_math.h"
 
 void rrarray_resize(struct RRArray *array, size_t nmemb)
 {

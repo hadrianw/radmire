@@ -1,5 +1,3 @@
-#ifndef RR_rr_types_h_
-#define RR_rr_types_h_
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -64,5 +62,3 @@ struct RRArray {
         size_t nmemb;
         size_t size;
 };
-
-#endif

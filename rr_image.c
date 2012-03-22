@@ -1,5 +1,3 @@
-#include "rr_image.h"
-
 #include <SDL/SDL_opengl.h>
 #include <SDL/SDL_image.h>
 #include "physfsrwops.h"
@@ -73,4 +71,17 @@ out_conv:
         SDL_FreeSurface(orig);
 out_orig:
         return handle;
+}
+
+int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
+{
+	if(!map || !spec || !image)
+		return 0;
+	
+}
+
+struct RRTex *rr_gettex(struct RRArray *map, const char *name)
+{
+	if(!map || !name)
+		return NULL;
 }

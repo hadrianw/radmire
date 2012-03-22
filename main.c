@@ -1,10 +1,6 @@
 #include <SDL/SDL_opengl.h>
 #include <stdio.h>
 #include "rr.h"
-#include "rrgl.h"
-#include "rr_math.h"
-#include "rr_image.h"
-#include "rr_array.h"
 
 struct Object {
         struct RRtransform t;
