@@ -2,16 +2,21 @@
 
 #include <SDL/SDL.h>
 
-#define RRTEX_NCOORDS 8
-
-RRfloat coords[RRTEX_NCOORDS];
-
-SDL_Surface *rrimg_load(const char *path);
-SDL_Surface *rrimg_display_format(SDL_Surface *src);
-unsigned int rrtex_load(SDL_Surface *surface);
-unsigned int rrteximg_load(const char *path);
-
-struct RRtex {
+struct RRTex {
         unsigned int handle;
         float texcoords[4];
 };
+
+/*
+struct RRTexMap {
+	struct RRArray table;
+}
+*/
+
+SDL_Surface *rr_loadimg(const char *path);
+SDL_Surface *rr_formatimg(SDL_Surface *src);
+unsigned int rr_maketex(SDL_Surface *surface);
+unsigned int rr_loadtex(const char *path);
+
+//int rr_addatlas(struct RRTexMap *map, const char *spec, const char *image);
+//struct RRTex *rr_gettex(struct RRTexMap *map, const char *name);

@@ -6,7 +6,7 @@
 #include "rr.h"
 #include "utils.h"
 
-SDL_Surface *rrimg_load(const char *path)
+SDL_Surface *rr_loadimg(const char *path)
 {
         SDL_RWops *rw;
 
@@ -16,12 +16,12 @@ SDL_Surface *rrimg_load(const char *path)
         return IMG_Load_RW(rw, 1);
 }
 
-SDL_Surface *rrimg_display_format(SDL_Surface *src)
+SDL_Surface *rr_formatimg(SDL_Surface *src)
 {
         return SDL_ConvertSurface(src, &rr_format, SDL_SWSURFACE);
 }
 
-unsigned int rrtex_load(SDL_Surface *surface)
+unsigned int rr_maketex(SDL_Surface *surface)
 {
         GLenum type;
         unsigned int handle;
@@ -52,21 +52,21 @@ unsigned int rrtex_load(SDL_Surface *surface)
         return handle;
 }
 
-unsigned int rrteximg_load(const char *path)
+unsigned int rr_loadtex(const char *path)
 {
         unsigned int handle = 0;
         SDL_Surface *orig = NULL;
         SDL_Surface *conv = NULL;
 
-        orig = rrimg_load(path);
+        orig = rr_loadimg(path);
         if(!orig)
                 goto out_orig;
 
-        conv = rrimg_display_format(orig);
+        conv = rr_formatimg(orig);
         if(!conv)
                 goto out_conv;
 
-        handle = rrtex_load(conv);
+        handle = rr_maketex(conv);
 
         SDL_FreeSurface(conv);
 out_conv:

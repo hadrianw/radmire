@@ -21,7 +21,7 @@ int main(int argc, char **argv)
                 return -1;
         }
 
-        unsigned int handle = rrteximg_load("square.png");
+        unsigned int handle = rr_loadtex("square.png");
         
         while(rr_running) {
                 rr_begin_frame();
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
                 if(rr_changed_buttons[0] && rr_pressed_buttons[0]) {
                         struct Object new = {
                                 rr_transform_identity,
-                                {5, 5}
+                                {20, 20}
                         };
                         new.t.pos = rr_abs_screen_mouse;
                         rrarray_push(&objects, &new);

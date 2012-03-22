@@ -2,6 +2,7 @@
 #define RR_rr_types_h_
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define RR_DOUBLE_FLOAT
 
@@ -55,6 +56,13 @@ struct RRmesh {
         struct RRvec2 *vertices;
         unsigned int allocated;
         unsigned int used;
+};
+
+struct RRArray {
+        void *ptr;
+        size_t nalloc;
+        size_t nmemb;
+        size_t size;
 };
 
 #endif
