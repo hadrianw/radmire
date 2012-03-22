@@ -9,6 +9,11 @@
 #define ispow2(X) (((X) & ((X) - 1)) == 0)
 #define LENGTH(X) (sizeof(X) / sizeof (X)[0])
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#define COLOR_SHIFT(X) (3 - (X))
+#else
+#define COLOR_SHIFT(X) (X)
+#endif
 
 struct Img {
 	SDL_Surface *image;
@@ -40,6 +45,7 @@ static bool failstop = true;
 static bool sortinput = true;
 static bool verbose = false;
 static int border = 1;
+static int bitdepth = 32;
 static unsigned int width = 0;
 static unsigned int height = 0;
 static const char *targetname = NULL;
@@ -64,9 +70,11 @@ int main(int argc, char **argv)
 			verbose = true;
 		else if(i+1 == argc)
 			usage();
-		else if(!strcmp(argv[i], "-b")) {
+		else if(!strcmp(argv[i], "-b"))
 			border = atoi(argv[++i]);
-		} else if(!strcmp(argv[i], "-s")) {
+		else if(!strcmp(argv[i], "-d"))
+			bitdepth = atoi(argv[++i]);
+		else if(!strcmp(argv[i], "-s")) {
 			int ss = sscanf(argv[++i], "%ux%u", &width, &height);
 			if(ss == 1)
 				height = width;
@@ -81,7 +89,8 @@ int main(int argc, char **argv)
 		} else
 			usage();
 	}
-	if(border <= 0 || !width || !height || !ispow2(width) || !ispow2(height)
+	if(border <= 0 || (bitdepth != 16 && bitdepth != 32)
+	   || !width || !height || !ispow2(width) || !ispow2(height)
 	   || !targetname || nsources <= 0 || !sourcename)
 		usage();
 
@@ -118,19 +127,15 @@ void cleanup(int status)
 		exit(status);
 }
 
+#include <math.h>
+
 SDL_Surface *createsurface(int width, int height, int bpp)
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	Uint32 rmsk = 0xff000000;
-	Uint32 gmsk = 0x00ff0000;
-	Uint32 bmsk = 0x0000ff00;
-	Uint32 amsk = 0x000000ff;
-#else
-	Uint32 rmsk = 0x000000ff;
-	Uint32 gmsk = 0x0000ff00;
-	Uint32 bmsk = 0x00ff0000;
-	Uint32 amsk = 0xff000000;
-#endif
+        Uint32 rmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(3);
+        Uint32 gmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(2);
+        Uint32 bmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(1);
+        Uint32 amsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(0);
+
 	return SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, bpp,
 	                            rmsk, gmsk, bmsk, amsk);
 }
@@ -139,7 +144,7 @@ void genatlas()
 {
 	openspec();
 
-	target = createsurface(width, height, 32);
+	target = createsurface(width, height, bitdepth);
         root.rect.w = target->w;
         root.rect.h = target->h;
 
