@@ -8,13 +8,13 @@ struct Level {
 };
 
 static struct Level levels[] = {
-	{0, 0x80, 0},
-	{1 << 7, 0xE0, 0xC0},
-	{1 << 11, 0xF0, 0xE0}
+	{0, (char)0x80, 0},
+	{1 << 7, (char)0xE0, (char)0xC0},
+	{1 << 11, (char)0xF0, (char)0xE0}
         // last 1 << 16
 };
-static char BMASK = 0xC0;
-static char BVAL= 0x80;
+static char BMASK = (char)0xC0;
+static char BVAL= (char)0x80;
 
 size_t utf8offset(const char *buff, size_t *offset)
 {
