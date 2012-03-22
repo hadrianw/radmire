@@ -8,6 +8,12 @@
 #include "rr_math.h"
 #include "rr.h"
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#define COLOR_SHIFT(X) (3 - (X))
+#else
+#define COLOR_SHIFT(X) (X)
+#endif
+
 int rr_width = -1;
 int rr_height = -1;
 int rr_bpp = -1;
@@ -149,14 +155,14 @@ int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
 
         rr_format.BitsPerPixel = bpp;
         rr_format.BytesPerPixel = bpp / 8;
-        rr_format.Rshift = bpp / 4 * 3;
-        rr_format.Gshift = bpp / 4 * 2;
-        rr_format.Bshift = bpp / 4 * 1;
-        rr_format.Ashift = bpp / 4 * 0;
-        rr_format.Rmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Rshift;
-        rr_format.Gmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Gshift;
-        rr_format.Bmask = ((int)powf(2, bpp / 4) - 1) << rr_format.Bshift;
-        rr_format.Amask = ((int)powf(2, bpp / 4) - 1) << rr_format.Ashift;
+        rr_format.Rshift = bpp / 4 * COLOR_SHIFT(3);
+        rr_format.Gshift = bpp / 4 * COLOR_SHIFT(2);
+        rr_format.Bshift = bpp / 4 * COLOR_SHIFT(1);
+        rr_format.Ashift = bpp / 4 * COLOR_SHIFT(0);
+        rr_format.Rmask = ((1 <<  bpp / 4) - 1) << rr_format.Rshift;
+        rr_format.Gmask = ((1 <<  bpp / 4) - 1) << rr_format.Gshift;
+        rr_format.Bmask = ((1 <<  bpp / 4) - 1) << rr_format.Bshift;
+        rr_format.Amask = ((1 <<  bpp / 4) - 1) << rr_format.Ashift;
 
         rr_width = width;
         rr_height = height;
