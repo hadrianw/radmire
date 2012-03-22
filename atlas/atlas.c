@@ -1,16 +1,17 @@
-#include <SDL/SDL_video.h>
 #include <SDL/SDL_image.h>
-#include "IMG_savepng.h"
+#include <SDL/SDL_video.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
+#include "IMG_savepng.h"
 
 #define ispow2(X) (((X) & ((X) - 1)) == 0)
 #define LENGTH(X) (sizeof(X) / sizeof (X)[0])
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
 struct Img {
-	SDL_Surface *surf;
+	SDL_Surface *image;
 	const char *name;
 };
 
@@ -18,13 +19,22 @@ struct ImgNode {
 	SDL_Surface *image;
 	SDL_Rect rect;
         struct ImgNode *parent;
-        struct ImgNode *children[2];
+        struct ImgNode *child[2];
 };
 
+static void cleanup(int status);
+static SDL_Surface *createsurface(int width, int height, int bpp);
+static void genatlas();
 static int imgcomp(const void* b, const void* a);
 static void imgnode_free(struct ImgNode *node);
 static struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface);
+static void loadsources();
+static void openspec();
+static void saveimage();
 static void usage();
+
+static const char specext[] = ".atlas";
+static const char imageext[] = ".png";
 
 static bool failstop = true;
 static bool sortinput = true;
@@ -33,16 +43,18 @@ static int border = 1;
 static unsigned int width = 0;
 static unsigned int height = 0;
 static const char *targetname = NULL;
-static char **input = NULL;
-static int ninput = 0;
+static char **sourcename = NULL;
+static int nsources = 0;
 
-static const char specext[] = ".atlas";
-static const char targetext[] = ".png";
+static struct Img *source = NULL;
+static char *filename = NULL;
+static size_t filenamesize = 0;
+static struct ImgNode root = { 0 };
+static FILE *spec = NULL;
+static SDL_Surface *target = NULL;
 
 int main(int argc, char **argv)
 {
-        int ret = EXIT_FAILURE;
-
 	for(int i = 1; i < argc; i++) {
 		if(!strcmp(argv[i], "-c"))
 			failstop = false;
@@ -59,56 +71,55 @@ int main(int argc, char **argv)
 			if(ss == 1)
 				height = width;
 			else if(ss != 2)
-				return ret;
+				usage();
 		} else if(!strcmp(argv[i], "-o")) {
 			targetname = argv[++i];
 			i++;
-			ninput = argc - i;
-			input = argv + i;
+			nsources = argc - i;
+			sourcename = argv + i;
 			break;
 		} else
 			usage();
 	}
 	if(border <= 0 || !width || !height || !ispow2(width) || !ispow2(height)
-	   || !targetname || ninput <= 0 || !input)
+	   || !targetname || nsources <= 0 || !sourcename)
 		usage();
 
-        struct Img *imgs = calloc(ninput, sizeof(imgs[0]));
-        for(int i = 0; i < ninput; i++) {
-		if(verbose)
-			printf("loading %s\n", input[i]);
-		imgs[i].name = input[i];
-                if( !(imgs[i].surf = IMG_Load(input[i])) ) {
-			fprintf(stderr, "atlas: couldn't load %s\n", input[i]);
-			if(failstop) {
-				ninput = i;
-				goto free;
-			}
-                } else
-			SDL_SetAlpha(imgs[i].surf, 0, SDL_ALPHA_OPAQUE);
-        }
+	loadsources();
 
 	if(sortinput) {
-		qsort(imgs, ninput, sizeof(imgs[0]), imgcomp);
+		qsort(source, nsources, sizeof(source[0]), imgcomp);
 		if(verbose) {
 			puts("sort order:");
-			for(int i = 0; i < ninput; i++)
-				puts(imgs[i].name);
+			for(int i = 0; i < nsources; i++)
+				puts(source[i].name);
 
 		}
 	}
 
-	const int len = strlen(targetname) + MAX(LENGTH(specext), LENGTH(targetext));
-        char *filename = malloc(len * sizeof(filename[0]));
-	strcpy(filename, targetname);
-	strcat(filename, specext);
-	if(verbose)
-		printf("saving spec %s\n", filename);
-        FILE *spec = fopen(filename, "w+b");
-	if(!spec) {
-		fprintf(stderr, "atlas: couldn't open %s\n", filename);
-		goto free_filename;
-	}
+	genatlas();
+	saveimage();
+
+	cleanup(0);
+        return 0;
+}
+
+void cleanup(int status)
+{
+        imgnode_free(&root);
+	SDL_FreeSurface(target);
+	free(filename);
+        for(int i = 0; i < nsources; i++) {
+                SDL_FreeSurface(source[i].image);
+        }
+        free(source);
+
+	if(status)
+		exit(status);
+}
+
+SDL_Surface *createsurface(int width, int height, int bpp)
+{
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	Uint32 rmsk = 0xff000000;
 	Uint32 gmsk = 0x00ff0000;
@@ -120,55 +131,51 @@ int main(int argc, char **argv)
 	Uint32 bmsk = 0x00ff0000;
 	Uint32 amsk = 0xff000000;
 #endif
-	SDL_Surface *target = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
-	                                           rmsk, gmsk, bmsk, amsk);
-        struct ImgNode root = { .rect = {0, 0, target->w, target->h} };
-        struct ImgNode *node = NULL;
+	return SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, bpp,
+	                            rmsk, gmsk, bmsk, amsk);
+}
+
+void genatlas()
+{
+	openspec();
+
+	target = createsurface(width, height, 32);
+        root.rect.w = target->w;
+        root.rect.h = target->h;
 
 	float invwidth = 1.0f / width;
 	float invheight = 1.0f / height;
-        for(unsigned int i = 0; i < ninput; i++) {
-		if(imgs[i].surf) {
-			node = imgnode_insert(&root, imgs[i].surf);
-			if(node) {
-				SDL_BlitSurface(node->image, NULL, target, &node->rect);
-				fprintf(spec, "%f %f %f %f %s\n",
-				       node->rect.x * invwidth, node->rect.y * invheight,
-				       node->rect.w * invwidth, node->rect.h * invheight,
-                                       imgs[i].name);
-			} else if(failstop) {
-				fprintf(stderr, "atlas: couldn't fit %s\n", input[i]);
-				goto free_atlas;
-			}
-		} else if(sortinput) {
-                        ninput = i;
-			break;
-                }
+        struct ImgNode *node = NULL;
+        for(int i = 0; i < nsources; i++) {
+		if(!source[i].image) {
+			if(sortinput) {
+				nsources = i;
+				break;
+			} else
+				continue;
+		}
+		if(verbose)
+			printf("fitting %s\n", source[i].name);
+		node = imgnode_insert(&root, source[i].image);
+		if(!node) {
+			fprintf(stderr, "atlas: couldn't fit %s\n", source[i].name);
+			if(failstop)
+				cleanup(EXIT_FAILURE);
+			continue;
+		}
+		SDL_BlitSurface(node->image, NULL, target, &node->rect);
+		fprintf(spec, "%f %f %f %f %s\n",
+		        node->rect.x * invwidth, node->rect.y * invheight,
+		        node->rect.w * invwidth, node->rect.h * invheight,
+		        source[i].name);
         }
 	fclose(spec);
-	strcpy(filename + len - LENGTH(specext), targetext);
-	if(verbose)
-		printf("saving image %s\n", filename);
-	IMG_SavePNG(targetname, target, 9);
-	ret = 0;
-
-free_atlas:
-        imgnode_free(&root);
-	SDL_FreeSurface(target);
-free_filename:
-	free(filename);
-free:
-        for(int i = 0; i < ninput; i++) {
-                SDL_FreeSurface(imgs[i].surf);
-        }
-        free(imgs);
-        return ret;
 }
 
 int imgcomp(const void* b, const void* a)
 {
-	const SDL_Surface *A = ((struct Img*)a)->surf;
-	const SDL_Surface *B = ((struct Img*)b)->surf;
+	const SDL_Surface *A = ((struct Img*)a)->image;
+	const SDL_Surface *B = ((struct Img*)b)->image;
 	if(!A || !B)
 		return (A ? 1 : 0) - (B ? 1 : 0);
 	else
@@ -180,8 +187,8 @@ void imgnode_free(struct ImgNode *node)
         if(!node)
                 return;
 
-        for(int i = 0; i < LENGTH(node->children); i++)
-                imgnode_free(node->children[i]);
+        for(int i = 0; i < LENGTH(node->child); i++)
+                imgnode_free(node->child[i]);
 
         if(node->parent)
                 free(node);
@@ -190,10 +197,10 @@ void imgnode_free(struct ImgNode *node)
 struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface)
 {
 	//if we're not a leaf then insert
-	if(node->children[0] && node->children[1]) {
+	if(node->child[0] && node->child[1]) {
 		struct ImgNode *next = NULL;
-                for(int i = 0; i < LENGTH(node->children) && !next; i++)
-                        next = imgnode_insert(node->children[i], surface);
+                for(int i = 0; i < LENGTH(node->child) && !next; i++)
+                        next = imgnode_insert(node->child[i], surface);
                 return next;
 	}
 
@@ -211,9 +218,9 @@ struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface)
         }
 
         // otherwise, gotta split this node and create some kids
-        for(int i = 0; i < LENGTH(node->children); i++) {
-                node->children[i] = calloc(1, sizeof(struct ImgNode));
-                node->children[i]->parent = node;
+        for(int i = 0; i < LENGTH(node->child); i++) {
+                node->child[i] = calloc(1, sizeof(struct ImgNode));
+                node->child[i]->parent = node;
         }
 
         SDL_Rect dst = node->rect;
@@ -227,16 +234,61 @@ struct ImgNode *imgnode_insert(struct ImgNode *node, SDL_Surface *surface)
                 rest.y += dst.h;
                 rest.h -= dst.h;
         }
-        node->children[0]->rect = dst;
-        node->children[1]->rect = rest;
+        node->child[0]->rect = dst;
+        node->child[1]->rect = rest;
 
-        return imgnode_insert(node->children[0], surface);
+        return imgnode_insert(node->child[0], surface);
+}
+
+void loadsources()
+{
+        source = calloc(nsources, sizeof(source[0]));
+        for(int i = 0; i < nsources; i++) {
+		if(verbose)
+			printf("loading %s\n", sourcename[i]);
+		source[i].image = IMG_Load(sourcename[i]);
+		source[i].name = sourcename[i];
+                if(source[i].image)
+			SDL_SetAlpha(source[i].image, 0, SDL_ALPHA_OPAQUE);
+		else {
+			fprintf(stderr, "atlas: couldn't load %s\n", sourcename[i]);
+			if(failstop) {
+				nsources = i;
+				cleanup(EXIT_FAILURE);
+			}
+                }
+        }
+}
+
+void openspec()
+{
+	filenamesize = strlen(targetname) + MAX(LENGTH(specext), LENGTH(imageext));
+        filename = malloc(filenamesize * sizeof(filename[0]));
+	strcpy(filename, targetname);
+	strcat(filename, specext);
+	if(verbose)
+		printf("saving spec %s\n", filename);
+        spec = fopen(filename, "w+b");
+	if(!spec) {
+		fprintf(stderr, "atlas: couldn't open %s:", filename);
+		cleanup(EXIT_FAILURE);
+	}
+}
+
+void saveimage()
+{
+	strcpy(filename, targetname);
+	strcat(filename, imageext);
+	if(verbose)
+		printf("saving image %s\n", filename);
+	IMG_SavePNG(filename, target, 9);
 }
 
 void usage()
 {
-	fputs("usage: atlas -s <size> [-vcu] [-f <format><bpp>] -o target source ...\n"
-	      "       atlas -s <width>x<height> [-vcu] [-f <format><bpp>] -o target source ...\n", stderr);
-	exit(EXIT_FAILURE);
+	fputs("usage: atlas -s <size> [-v -c -u] -o target source ...\n"
+	      "       atlas -s <width>x<height> [-v -c -u] -o target source ...\n",
+	      stderr);
+	cleanup(EXIT_FAILURE);
 }
 
