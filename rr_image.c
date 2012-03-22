@@ -96,8 +96,14 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
         	       &tex->texcoords[1],
         	       &tex->texcoords[2],
         	       &tex->texcoords[3]);
-	if(nread != 4)
+	if(nread != 4
+           || tex->texcoords[0] < 0 || tex->texcoords[0] >= 1
+           || tex->texcoords[1] < 0 || tex->texcoords[1] >= 1
+           || tex->texcoords[2] <= 0 || tex->texcoords[2] > 1
+           || tex->texcoords[3] <= 0 || tex->texcoords[3] > 1)
 		goto free_tex;
+        tex->texcoords[2] += tex->texcoords[0];
+        tex->texcoords[3] += tex->texcoords[1];
 	fgets(buff, LENGTH(buff), specfile);	
 	tex->name = malloc((strlen(buff) + 1) * sizeof(tex->name[0]));
 	strcpy(tex->name, buff);
