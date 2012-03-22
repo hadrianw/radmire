@@ -73,21 +73,10 @@ out_orig:
         return handle;
 }
 
-int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
+struct RRTex *specline(FILE *specfile)
 {
-	if(!map || !spec || !image)
-		return 0;
-	
-	FILE *specfile = fopen(spec, "rb");
-	if(!spec)
-		return 0;
-
-	unsigned int atlas = rr_loadtex(image);
-	rrgl_bind_texture(atlas);
-
+	static char buff[BUFSIZ];
 	struct RRTex *tex;
-
-	char buff[BUFSIZ];
 	tex = calloc(1, sizeof(tex[0]));
 	int nread = 0;
 	nread = fscanf(specfile,
@@ -101,12 +90,38 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
            || tex->texcoords[1] < 0 || tex->texcoords[1] >= 1
            || tex->texcoords[2] <= 0 || tex->texcoords[2] > 1
            || tex->texcoords[3] <= 0 || tex->texcoords[3] > 1)
-		goto free_tex;
+		goto free;
         tex->texcoords[2] += tex->texcoords[0];
         tex->texcoords[3] += tex->texcoords[1];
 	fgets(buff, LENGTH(buff), specfile);	
 	tex->name = malloc((strlen(buff) + 1) * sizeof(tex->name[0]));
 	strcpy(tex->name, buff);
+
+        return tex;
+free:
+        free(tex);
+        return NULL;
+}
+
+int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
+{
+	if(!map || !spec || !image)
+		return 0;
+	
+	FILE *specfile = fopen(spec, "rb");
+	if(!spec)
+		return 0;
+
+	unsigned int atlas = rr_loadtex(image);
+	rrgl_bind_texture(atlas);
+
+	struct RRTex *tex;
+        while( (tex = specline(specfile)) ) {
+                rrarray_push(map, tex);
+        }
+
+        // check for duplicates
+        // sort array
 
 	fclose(specfile);
 	return 0;

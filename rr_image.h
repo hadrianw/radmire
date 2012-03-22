@@ -4,6 +4,7 @@ struct RRTex {
         unsigned int handle;
         float texcoords[4];
 	char *name;
+        int nrefs;
 };
 
 SDL_Surface *rr_loadimg(const char *path);
