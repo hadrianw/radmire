@@ -10,9 +10,9 @@
 #define LENGTH(X) (sizeof(X) / sizeof (X)[0])
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#define COLOR_SHIFT(X) (3 - (X))
-#else
 #define COLOR_SHIFT(X) (X)
+#else
+#define COLOR_SHIFT(X) (3 - (X))
 #endif
 
 struct Img {
@@ -126,8 +126,6 @@ void cleanup(int status)
 	if(status)
 		exit(status);
 }
-
-#include <math.h>
 
 SDL_Surface *createsurface(int width, int height, int bpp)
 {

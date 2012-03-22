@@ -9,9 +9,9 @@
 #include "rr.h"
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#define COLOR_SHIFT(X) (3 - (X))
-#else
 #define COLOR_SHIFT(X) (X)
+#else
+#define COLOR_SHIFT(X) (3 - (X))
 #endif
 
 int rr_width = -1;
