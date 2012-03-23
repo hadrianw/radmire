@@ -10,21 +10,28 @@
 #define RRGL_FLOAT_TYPE GL_FLOAT
 #endif
 
-struct RRvec2 *vertices = NULL;
-struct RRcolor *colors = NULL;
-struct RRvec2 *texcoords = NULL;
+static struct RRvec2 texcoords_identity[4] = {
+	{0.0f, 1.0f},
+	{1.0f, 1.0f},
+	{1.0f, 0.0f},
+	{0.0f, 0.0f}
+};
+
+static struct RRvec2 *vertices = NULL;
+static struct RRcolor *colors = NULL;
+static struct RRvec2 *texcoords = NULL;
 
 #define BATCH_VERTS 16384
-struct RRvec2 batch_vertices[BATCH_VERTS];
-struct RRcolor batch_colors[BATCH_VERTS];
-struct RRvec2 batch_texcoords[BATCH_VERTS];
-unsigned int batch_count = 0;
-GLenum batch_mode = GL_QUADS;
+static struct RRvec2 batch_vertices[BATCH_VERTS];
+static struct RRcolor batch_colors[BATCH_VERTS];
+static struct RRvec2 batch_texcoords[BATCH_VERTS];
+static unsigned int batch_count = 0;
+static GLenum batch_mode = GL_QUADS;
 
-struct RRtransform transform;
-struct RRcolor color;
+static struct RRtransform transform;
+static struct RRcolor color;
 
-GLuint active_texture = 0;
+static GLuint active_texture = 0;
 
 void rrgl_init(void)
 {
@@ -121,18 +128,12 @@ void rrgl_draw_rect(const struct RRvec2 *size, const struct RRvec2 *align)
                 {size->x * (1.0f - align->x), size->y *  align->y        },
                 {size->x *       - align->x , size->y *  align->y        }
         };
-        struct RRvec2 ts[4] = {
-                {0.0f, 1.0f},
-                {1.0f, 1.0f},
-                {1.0f, 0.0f},
-                {0.0f, 0.0f}
-        };
-        const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
+        static const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
 
         rrgl_vertex_pointer(vs);
         rrgl_color_pointer(NULL);
-        rrgl_texcoord_pointer(ts);
         rrgl_draw_elements(GL_TRIANGLES, LENGTH(is), is);
+        rrgl_vertex_pointer(NULL);
 }
 
 void rrgl_flush()

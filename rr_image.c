@@ -110,20 +110,18 @@ struct RRTex *specline(struct RRArray *map, FILE *specfile)
 	tex = calloc(1, sizeof(tex[0]));
 
 	int nread = 0;
-	nread = fscanf(specfile,
-	               "%f %f %f %f ",
-	               &tex->texcoords[0],
-        	       &tex->texcoords[1],
-        	       &tex->texcoords[2],
-        	       &tex->texcoords[3]);
+	struct RRvec2 pos;
+	struct RRvec2 siz;
+	nread = fscanf(specfile, "%lf %lf %lf %lf ",
+	               &pos.x, &pos.y, &siz.x, &siz.y);
 	if(nread != 4
-           || tex->texcoords[0] < 0 || tex->texcoords[0] >= 1
-           || tex->texcoords[1] < 0 || tex->texcoords[1] >= 1
-           || tex->texcoords[2] <= 0 || tex->texcoords[2] > 1
-           || tex->texcoords[3] <= 0 || tex->texcoords[3] > 1)
+           || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
+           || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
 		goto free;
-        tex->texcoords[2] += tex->texcoords[0];
-        tex->texcoords[3] += tex->texcoords[1];
+	tex->texcoords[0] = rr_vec2(pos.x, pos.y + siz.y);
+	tex->texcoords[1] = rr_vec2_plus(pos, siz);
+	tex->texcoords[2] = rr_vec2(pos.x + siz.x, pos.y);
+	tex->texcoords[3] = pos;
 
 	fgets(buff, LENGTH(buff), specfile);	
 	size_t bufflen = strlen(buff);

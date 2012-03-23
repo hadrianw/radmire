@@ -1,11 +1,5 @@
 #include <SDL/SDL.h>
 
-struct RRTex {
-        unsigned int handle;
-        float texcoords[4];
-	char *name;
-};
-
 extern struct RRArray rr_map;
 
 SDL_Surface *rr_loadimg(const char *path);
