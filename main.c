@@ -18,6 +18,8 @@ int main(int argc, char **argv)
         }
 
         unsigned int handle = rr_loadtex("square.png");
+	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
+	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
         
         while(rr_running) {
                 rr_begin_frame();
