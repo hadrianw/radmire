@@ -27,6 +27,12 @@ static inline unsigned int to_pow2(unsigned int v)
         return ++v;
 }
 
+static inline struct RRvec2 rr_vec2(RRfloat x, RRfloat y)
+{
+	struct RRvec2 v = { x, y };
+	return v;
+}
+
 static inline struct RRvec2 rr_vec2_plus(struct RRvec2 v1, struct RRvec2 v2)
 {
         struct RRvec2 tmp;

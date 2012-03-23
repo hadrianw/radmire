@@ -62,3 +62,9 @@ struct RRArray {
         size_t nmemb;
         size_t size;
 };
+
+struct RRTex {
+        unsigned int handle;
+        struct RRvec2 texcoords[4];
+	char *name;
+};
