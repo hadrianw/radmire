@@ -177,12 +177,25 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 	      (int(*)(const void*, const void*))texcmp);
 
 	return 0;
-/*
-free_tex:
-	free(tex);
-	fclose(specfile);
-	return 0;
-	*/
+}
+
+struct RRTex *rr_gettex(struct RRArray *map, const char *name)
+{
+	if(!map || !name)
+		return NULL;
+	struct RRTex * tex = rr_findtex(map, name);
+        if(tex)
+                return tex;
+
+        tex = malloc(sizeof(tex[0]));
+        tex->handle = rr_loadtex(name);
+        memcpy(tex->texcoords, rr_texcoords_identity, sizeof(tex->texcoords));
+        tex->name = malloc((strlen(name) + 1) * sizeof(name[0]));
+        strcpy(tex->name, name);
+        rrarray_push(map, &tex);
+	qsort(map->ptr, map->nmemb, map->size,
+	      (int(*)(const void*, const void*))texcmp);
+        return tex;
 }
 
 struct RRTex *rr_findtex(struct RRArray *map, const char *name)

@@ -10,7 +10,7 @@
 #define RRGL_FLOAT_TYPE GL_FLOAT
 #endif
 
-static struct RRvec2 texcoords_identity[4] = {
+struct RRvec2 rr_texcoords_identity[4] = {
 	{0.0f, 1.0f},
 	{1.0f, 1.0f},
 	{1.0f, 0.0f},

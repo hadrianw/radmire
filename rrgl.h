@@ -1,5 +1,18 @@
 #include <SDL/SDL_opengl.h>
 
+extern struct RRvec2 rr_texcoords_identity[4];
+
+void rrgl_init(void);
+
+void rrgl_vertex_pointer(struct RRvec2 *pointer);
+void rrgl_color_pointer(struct RRcolor *pointer);
+void rrgl_texcoord_pointer(struct RRvec2 *pointer);
+void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count);
+void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
+
+void rrgl_draw_rect(const struct RRvec2 *size, const struct RRvec2 *align);
+
+
 void rrgl_init(void);
 
 void rrgl_vertex_pointer(struct RRvec2 *pointer);
