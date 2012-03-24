@@ -73,33 +73,69 @@ out_orig:
         return handle;
 }
 
-struct RRTex *specline(FILE *specfile)
+struct RRArray rr_map = {
+	.size = sizeof(struct RRTex*)
+};
+
+static int texcmp(const struct RRTex **a, const struct RRTex **b)
+{
+	// FIXME: is this possible:
+	if(!a || !b)
+		return (a ? 1 : 0) - (b ? 1 : 0);
+
+	return strcmp((*a)->name, (*b)->name);
+}
+
+static int strtexcmp(const char *a, const struct RRTex **b)
+{
+	// FIXME: is this possible:
+	if(!a || !b)
+		return (a ? 1 : 0) - (b ? 1 : 0);
+
+	return strcmp(a, (*b)->name);
+}
+
+static void freetex(struct RRTex *tex)
+{
+	if(!tex)
+		return;
+	free(tex->name);
+	free(tex);
+}
+
+struct RRTex *specline(struct RRArray *map, FILE *specfile)
 {
 	static char buff[BUFSIZ];
 	struct RRTex *tex;
 	tex = calloc(1, sizeof(tex[0]));
+
 	int nread = 0;
-	nread = fscanf(specfile,
-	               "%f %f %f %f ",
-	               &tex->texcoords[0],
-        	       &tex->texcoords[1],
-        	       &tex->texcoords[2],
-        	       &tex->texcoords[3]);
+	struct RRvec2 pos;
+	struct RRvec2 siz;
+	nread = fscanf(specfile, "%lf %lf %lf %lf ",
+	               &pos.x, &pos.y, &siz.x, &siz.y);
 	if(nread != 4
-           || tex->texcoords[0] < 0 || tex->texcoords[0] >= 1
-           || tex->texcoords[1] < 0 || tex->texcoords[1] >= 1
-           || tex->texcoords[2] <= 0 || tex->texcoords[2] > 1
-           || tex->texcoords[3] <= 0 || tex->texcoords[3] > 1)
+           || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
+           || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
 		goto free;
-        tex->texcoords[2] += tex->texcoords[0];
-        tex->texcoords[3] += tex->texcoords[1];
+	tex->texcoords[0] = rr_vec2(pos.x, pos.y + siz.y);
+	tex->texcoords[1] = rr_vec2_plus(pos, siz);
+	tex->texcoords[2] = rr_vec2(pos.x + siz.x, pos.y);
+	tex->texcoords[3] = pos;
+
 	fgets(buff, LENGTH(buff), specfile);	
-	tex->name = malloc((strlen(buff) + 1) * sizeof(tex->name[0]));
+	size_t bufflen = strlen(buff);
+	if(buff[bufflen-1] == '\n')
+		buff[bufflen-1] = '\0';
+	else
+		goto free;
+	tex->name = malloc((bufflen + 1) * sizeof(tex->name[0]));
 	strcpy(tex->name, buff);
 
         return tex;
+
 free:
-        free(tex);
+        freetex(tex);
         return NULL;
 }
 
@@ -113,28 +149,57 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 		return 0;
 
 	unsigned int atlas = rr_loadtex(image);
-	rrgl_bind_texture(atlas);
 
+	size_t nprev = map->nmemb;
 	struct RRTex *tex;
-        while( (tex = specline(specfile)) ) {
-                rrarray_push(map, tex);
+	struct RRTex *dup;
+	printf("map: nmemb %lu nalloc %lu size %lu\n",
+	       map->nmemb, map->nalloc, map->size);
+        while( (tex = specline(map, specfile)) ) {
+		tex->handle = atlas;
+		dup = rr_findntex(map, nprev, tex->name);
+		// Ignore this line on duplicate, or we could:
+		// memset(dup, tex,
+		//        sizeof(struct RRTex) - sizeof(tex->name));
+		// freetex(tex);
+		// tex = dup;
+		if(dup) {
+			printf("duplicate found: %s\n", tex->name);
+			freetex(tex);
+		} else {
+			printf("inserting: %s\n", tex->name);
+			rrarray_push(map, &tex);
+		}
         }
 
-        // check for duplicates
-        // sort array
+	qsort(map->ptr, map->nmemb, map->size,
+	      (int(*)(const void*, const void*))texcmp);
 
 	fclose(specfile);
 	return 0;
+/*
 free_tex:
 	free(tex);
 	fclose(specfile);
 	return 0;
+	*/
 }
 
-struct RRTex *rr_gettex(struct RRArray *map, const char *name)
+struct RRTex *rr_findtex(struct RRArray *map, const char *name)
+{
+	if(!map || !name)
+		return NULL;
+	return rr_findntex(map, map->nmemb, name);
+}
+
+struct RRTex *rr_findntex(struct RRArray *map, size_t nel, const char *name)
 {
 	if(!map || !name)
 		return NULL;
 
-	return NULL;
+	struct RRTex **match;
+	match = bsearch(name, map->ptr, nel, map->size,
+	                (int(*)(const void*, const void*))strtexcmp);
+
+	return match ? *match : NULL;
 }

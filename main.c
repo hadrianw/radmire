@@ -18,6 +18,9 @@ int main(int argc, char **argv)
         }
 
         unsigned int handle = rr_loadtex("square.png");
+	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
+	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
+	struct RRTex *tex = rr_findtex(&rr_map, "net-cpy.png");
         
         while(rr_running) {
                 rr_begin_frame();
@@ -34,7 +37,8 @@ int main(int argc, char **argv)
 
                 rr_begin_scene();
 
-                rrgl_bind_texture(handle);
+                rrgl_bind_texture(tex->handle);
+		rrgl_texcoord_pointer(tex->texcoords);
                 struct Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
                         rrgl_load_transform(&p[i].t);

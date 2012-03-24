@@ -146,8 +146,8 @@ void genatlas()
         root.rect.w = target->w;
         root.rect.h = target->h;
 
-	float invwidth = 1.0f / width;
-	float invheight = 1.0f / height;
+	double invwidth = 1.0 / width;
+	double invheight = 1.0 / height;
         struct ImgNode *node = NULL;
         for(int i = 0; i < nsources; i++) {
 		if(!source[i].image) {
@@ -170,7 +170,7 @@ void genatlas()
 			fprintf(stderr, "atlas: couldn't blit %s\n", source[i].name);
 			cleanup(EXIT_FAILURE);
 		}
-		fprintf(spec, "%f %f %f %f %s\n",
+		fprintf(spec, "%.8lf %.8lf %.8lf %.8lf %s\n",
 		        node->rect.x * invwidth, node->rect.y * invheight,
 		        node->rect.w * invwidth, node->rect.h * invheight,
 		        source[i].name);
