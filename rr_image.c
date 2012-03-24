@@ -171,11 +171,11 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 			rrarray_push(map, &tex);
 		}
         }
+	fclose(specfile);
 
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);
 
-	fclose(specfile);
 	return 0;
 /*
 free_tex:
