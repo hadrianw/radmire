@@ -19,8 +19,8 @@ int main(int argc, char **argv)
 
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	//struct RRTex *tex = rr_gettex(&rr_map, "src-net.png");
-	struct RRTex *tex = rr_gettex(&rr_map, "square.png");
+	struct RRTex *tex = rr_gettex(&rr_map, "atlas/src-net.png");
+	//struct RRTex *tex = rr_gettex(&rr_map, "square.png");
 
         struct Object mouse = {
                 rr_transform_identity,

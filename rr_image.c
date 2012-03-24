@@ -19,37 +19,6 @@ SDL_Surface *rr_formatimg(SDL_Surface *src)
         return SDL_ConvertSurface(src, &rr_format, SDL_SWSURFACE);
 }
 
-unsigned int rr_maketex(SDL_Surface *surface)
-{
-        GLenum type;
-        unsigned int handle;
-
-        switch(surface->format->BitsPerPixel) {
-        case 32:
-                type = GL_UNSIGNED_INT_8_8_8_8;
-                break;
-        case 16:
-                type = GL_UNSIGNED_SHORT_4_4_4_4;
-                break;
-        default:
-                return 0;
-        }
-        
-        glGenTextures(1, &handle);   
-	glBindTexture(GL_TEXTURE_2D, handle);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-
-	glTexImage2D(GL_TEXTURE_2D, 0, surface->format->BytesPerPixel,
-                        surface->w, surface->h, 0, GL_RGBA, type,
-                        surface->pixels);
-
-	/*gluBuild2DMipmaps*/
-
-        return handle;
-}
-
 unsigned int rr_loadtex(const char *path)
 {
         unsigned int handle = 0;
@@ -71,6 +40,65 @@ out_conv:
         SDL_FreeSurface(orig);
 out_orig:
         return handle;
+}
+
+unsigned int rr_maketex(SDL_Surface *surface)
+{
+        GLenum type;
+        unsigned int handle;
+
+        switch(surface->format->BitsPerPixel) {
+        case 32:
+                type = GL_UNSIGNED_INT_8_8_8_8;
+                break;
+        case 16:
+                type = GL_UNSIGNED_SHORT_4_4_4_4;
+                break;
+        default:
+                return 0;
+        }
+
+        SDL_Surface *pow2 = rr_pow2img(surface);
+        if(!pow2)
+                return 0;
+        
+        glGenTextures(1, &handle);   
+	glBindTexture(GL_TEXTURE_2D, handle);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+	glTexImage2D(GL_TEXTURE_2D, 0, pow2->format->BytesPerPixel,
+                        pow2->w, pow2->h, 0, GL_RGBA, type,
+                        pow2->pixels);
+
+	/*gluBuild2DMipmaps*/
+
+        if(pow2 !=surface)
+                SDL_FreeSurface(pow2);
+
+        return handle;
+}
+
+SDL_Surface *rr_pow2img(SDL_Surface *src)
+{
+        if(ispow2(src->w) && ispow2(src->h))
+                return src;
+        SDL_SetAlpha(src, 0, SDL_ALPHA_OPAQUE);
+        SDL_Surface *dst = NULL;
+        dst = SDL_CreateRGBSurface(src->flags,
+                                   to_pow2(src->w), to_pow2(src->h),
+                                   src->format->BitsPerPixel,
+                                   src->format->Rmask,
+                                   src->format->Gmask,
+                                   src->format->Bmask,
+                                   src->format->Amask);
+        if(!dst || SDL_BlitSurface(src, NULL, dst, NULL)) {
+                SDL_FreeSurface(dst);
+                return NULL;
+        }
+        return dst;
+
 }
 
 struct RRArray rr_map = {

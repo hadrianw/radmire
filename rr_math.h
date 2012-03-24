@@ -16,6 +16,8 @@
 #define rr_atan2 atan2f
 #endif
 
+#define ispow2(X) (((X) & ((X) - 1)) == 0)
+
 static inline unsigned int to_pow2(unsigned int v)
 {
         v--;
