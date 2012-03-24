@@ -20,7 +20,12 @@ int main(int argc, char **argv)
         unsigned int handle = rr_loadtex("square.png");
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	struct RRTex *tex = rr_findtex(&rr_map, "net-cpy.png");
+	struct RRTex *tex = rr_findtex(&rr_map, "src-net.png");
+
+        struct Object mouse = {
+                rr_transform_identity,
+                { 150, 150 }
+        };
         
         while(rr_running) {
                 rr_begin_frame();
@@ -29,7 +34,7 @@ int main(int argc, char **argv)
                 if(rr_changed_buttons[0] && rr_pressed_buttons[0]) {
                         struct Object new = {
                                 rr_transform_identity,
-                                {20, 20}
+                                {50, 50}
                         };
                         new.t.pos = rr_abs_screen_mouse;
                         rrarray_push(&objects, &new);
@@ -44,6 +49,9 @@ int main(int argc, char **argv)
                         rrgl_load_transform(&p[i].t);
                         rrgl_draw_rect(&p[i].s, 0);
                 }
+                mouse.t.pos = rr_abs_screen_mouse;
+                rrgl_load_transform(&mouse.t);
+                rrgl_draw_rect(&mouse.s, 0);
 
                 rr_end_scene();
                 rr_end_frame();
