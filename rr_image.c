@@ -153,9 +153,8 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 	size_t nprev = map->nmemb;
 	struct RRTex *tex;
 	struct RRTex *dup;
-	printf("map: nmemb %lu nalloc %lu size %lu\n",
-	       map->nmemb, map->nalloc, map->size);
-        while( (tex = specline(map, specfile)) ) {
+        int ntex;
+        for(ntex = 0; (tex = specline(map, specfile)); ) {
 		tex->handle = atlas;
 		dup = rr_findntex(map, nprev, tex->name);
 		// Ignore this line on duplicate, or we could:
@@ -169,14 +168,20 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 		} else {
 			printf("inserting: %s\n", tex->name);
 			rrarray_push(map, &tex);
+                        ntex++;
 		}
         }
 	fclose(specfile);
 
+        if(!ntex) {
+                glDeleteTextures(1, &atlas);
+                return 0;
+        }
+
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);
 
-	return 0;
+	return ntex;
 }
 
 struct RRTex *rr_gettex(struct RRArray *map, const char *name)
