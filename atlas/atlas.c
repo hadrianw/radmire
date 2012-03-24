@@ -44,6 +44,7 @@ static const char imageext[] = ".png";
 static bool failstop = true;
 static bool sortinput = true;
 static bool verbose = false;
+static bool filltarget = false;
 static int border = 1;
 static unsigned int width = 0;
 static unsigned int height = 0;
@@ -67,6 +68,8 @@ int main(int argc, char **argv)
 			sortinput = false;
 		else if(!strcmp(argv[i], "-v"))
 			verbose = true;
+		else if(!strcmp(argv[i], "-f"))
+                        filltarget = true;
 		else if(i+1 == argc)
 			usage();
 		else if(!strcmp(argv[i], "-b"))
@@ -125,13 +128,18 @@ void cleanup(int status)
 
 SDL_Surface *createsurface(int width, int height, int bpp)
 {
+	SDL_Surface *surf;
         Uint32 rmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(3);
         Uint32 gmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(2);
         Uint32 bmsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(1);
         Uint32 amsk = ((1 << bpp / 4) - 1) << bpp / 4 * COLOR_SHIFT(0);
 
-	return SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, bpp,
+        surf = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, bpp,
 	                            rmsk, gmsk, bmsk, amsk);
+        if(surf && filltarget)
+                SDL_FillRect(surf, NULL, rmsk | amsk);
+        
+        return surf;
 }
 
 void genatlas()
@@ -295,8 +303,10 @@ void saveimage()
 
 void usage()
 {
-	fputs("usage: atlas -s <size> [-v -c -u] -o target source ...\n"
-	      "       atlas -s <width>x<height> [-v -c -u] -o target source ...\n",
+	fputs("usage: atlas -s <size> [-c] [-f] [-u] [-v]"
+                          " -o target source ...\n"
+	      "       atlas -s <width>x<height> [-c] [-f] [-u] [-v]"
+                          " -o target source ...\n",
 	      stderr);
 	cleanup(EXIT_FAILURE);
 }
