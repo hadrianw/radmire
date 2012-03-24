@@ -17,7 +17,6 @@ int main(int argc, char **argv)
                 return -1;
         }
 
-        unsigned int handle = rr_loadtex("square.png");
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	struct RRTex *tex = rr_findtex(&rr_map, "src-net.png");
@@ -57,6 +56,7 @@ int main(int argc, char **argv)
                 rr_end_frame();
         }
 
+        rr_freemaptex(&rr_map);
         rr_deinit();
         return 0;
 }

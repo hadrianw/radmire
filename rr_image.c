@@ -221,3 +221,16 @@ struct RRTex *rr_findntex(struct RRArray *map, size_t nel, const char *name)
 
 	return match ? *match : NULL;
 }
+
+void rr_freemaptex(struct RRArray *map)
+{
+        struct RRTex **tex = map->ptr;
+        for(size_t i = 0; i < map->nmemb; i++) {
+                glDeleteTextures(1, &tex[i]->handle);
+                freetex(tex[i]);
+        }
+        free(map->ptr);
+        map->ptr = 0;
+        map->nmemb = 0;
+        map->nalloc = 0;
+}
