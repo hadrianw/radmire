@@ -192,8 +192,13 @@ struct RRTex *rr_gettex(struct RRArray *map, const char *name)
         if(tex)
                 return tex;
 
+        printf("not found: %s, loading\n", name);
+        unsigned int handle = rr_loadtex(name);
+        if(!handle)
+                return NULL;
+
         tex = malloc(sizeof(tex[0]));
-        tex->handle = rr_loadtex(name);
+        tex->handle = handle;
         memcpy(tex->texcoords, rr_texcoords_identity, sizeof(tex->texcoords));
         tex->name = malloc((strlen(name) + 1) * sizeof(name[0]));
         strcpy(tex->name, name);
