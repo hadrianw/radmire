@@ -142,7 +142,11 @@ void rrgl_flush()
         glTexCoordPointer(2, RRGL_FLOAT_TYPE, 0, batch_texcoords);
         glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch_colors);
 
+        if(batch_mode < GL_TRIANGLES)
+                glDisable(GL_TEXTURE_2D);
         glDrawArrays(batch_mode, 0, batch_count);
+        if(batch_mode < GL_TRIANGLES)
+                glEnable(GL_TEXTURE_2D);
         batch_count = 0;
 }
 
