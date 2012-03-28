@@ -40,29 +40,29 @@ extern bool rr_button_released;
 
 extern bool rr_running;
 
-void rr_set_base_diagonal(int width, int height);
-void rr_set_base_vertical(int width, int height);
-void rr_set_base_none(int width, int height);
-void rr_set_base_horizontal(int width, int height);
+extern void rr_set_base_diagonal(int width, int height);
+extern void rr_set_base_vertical(int width, int height);
+extern void rr_set_base_none(int width, int height);
+extern void rr_set_base_horizontal(int width, int height);
 
-void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top);
-void rr_resize(int width, int height, int base);
-int rr_fullscreen_mode(int base);
-int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
+extern void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top);
+extern void rr_resize(int width, int height, int base);
+extern int rr_fullscreen_mode(int base);
+extern int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
 
-inline bool rr_pressing_key(unsigned int key)
+static inline bool rr_pressing_key(unsigned int key)
 {
         return rr_pressed_keys[key] && rr_changed_keys[key];
 }
 
-inline bool rr_pressing_button(unsigned int btn)
+static inline bool rr_pressing_button(unsigned int btn)
 {
         return rr_pressed_buttons[btn] && rr_changed_buttons[btn];
 }
 
-void rr_begin_frame(void);
-void rr_begin_scene(void);
-void rr_end_scene(void);
-void rr_end_frame(void);
-int rr_init(int argc, char **argv);
-void rr_deinit(void);
+extern void rr_begin_frame(void);
+extern void rr_begin_scene(void);
+extern void rr_end_scene(void);
+extern void rr_end_frame(void);
+extern int rr_init(int argc, char **argv);
+extern void rr_deinit(void);
