@@ -42,9 +42,10 @@ static const char specext[] = ".atlas";
 static const char imageext[] = ".png";
 
 static bool failstop = true;
-static bool sortinput = true;
-static bool verbose = false;
 static bool filltarget = false;
+static bool sortinput = true;
+static bool outext = true;
+static bool verbose = false;
 static int border = 1;
 static unsigned int width = 0;
 static unsigned int height = 0;
@@ -64,12 +65,14 @@ int main(int argc, char **argv)
 	for(int i = 1; i < argc; i++) {
 		if(!strcmp(argv[i], "-c"))
 			failstop = false;
+		else if(!strcmp(argv[i], "-f"))
+                        filltarget = true;
 		else if(!strcmp(argv[i], "-u"))
 			sortinput = false;
 		else if(!strcmp(argv[i], "-v"))
 			verbose = true;
-		else if(!strcmp(argv[i], "-f"))
-                        filltarget = true;
+		else if(!strcmp(argv[i], "-x"))
+                        outext = false;
 		else if(i+1 == argc)
 			usage();
 		else if(!strcmp(argv[i], "-b"))
@@ -157,6 +160,7 @@ void genatlas()
 	double invwidth = 1.0 / width;
 	double invheight = 1.0 / height;
         struct ImgNode *node = NULL;
+        size_t len;
         for(int i = 0; i < nsources; i++) {
 		if(!source[i].image) {
 			if(sortinput) {
@@ -178,10 +182,17 @@ void genatlas()
 			fprintf(stderr, "atlas: couldn't blit %s\n", source[i].name);
 			cleanup(EXIT_FAILURE);
 		}
-		fprintf(spec, "%.8lf %.8lf %.8lf %.8lf %s\n",
+
+                char *dot;
+                if(!outext && (dot = strrchr(source[i].name, '.')))
+                        len = dot - source[i].name;
+                else
+                        len = strlen(source[i].name);
+
+		fprintf(spec, "%.8lf %.8lf %.8lf %.8lf %.*s\n",
 		        node->rect.x * invwidth, node->rect.y * invheight,
 		        node->rect.w * invwidth, node->rect.h * invheight,
-		        source[i].name);
+		        len, source[i].name);
         }
 	fclose(spec);
 }
