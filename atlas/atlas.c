@@ -160,7 +160,7 @@ void genatlas()
 	double invwidth = 1.0 / width;
 	double invheight = 1.0 / height;
         struct ImgNode *node = NULL;
-        size_t len;
+        int len;
         for(int i = 0; i < nsources; i++) {
 		if(!source[i].image) {
 			if(sortinput) {
