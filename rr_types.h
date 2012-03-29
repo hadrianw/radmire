@@ -68,3 +68,5 @@ struct RRTex {
         struct RRVec2 texcoords[4];
 	char *name;
 };
+
+extern const struct RRVec2 rr_texcoords_identity[4];

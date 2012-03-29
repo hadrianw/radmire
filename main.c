@@ -1,6 +1,5 @@
-#include <SDL/SDL_opengl.h>
 #include <stdio.h>
-#include "rr.h"
+#include "radmire.h"
 #include <chipmunk.h>
 
 #include "rrphysics.h"

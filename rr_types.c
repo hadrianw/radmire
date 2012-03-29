@@ -25,3 +25,9 @@ const struct RRcolor rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
 const struct RRcolor rr_red = {0xFF, 0x00, 0x00, 0xFF};
 const struct RRcolor rr_green = {0x00, 0xFF, 0x00, 0xFF};
 
+const struct RRVec2 rr_texcoords_identity[4] = {
+	{0.0f, 1.0f},
+	{1.0f, 1.0f},
+	{1.0f, 0.0f},
+	{0.0f, 0.0f}
+};

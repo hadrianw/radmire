@@ -10,13 +10,6 @@
 #define RRGL_FLOAT_TYPE GL_FLOAT
 #endif
 
-struct RRVec2 rr_texcoords_identity[4] = {
-	{0.0f, 1.0f},
-	{1.0f, 1.0f},
-	{1.0f, 0.0f},
-	{0.0f, 0.0f}
-};
-
 static struct RRVec2 *vertices = NULL;
 static struct RRcolor *colors = NULL;
 static struct RRVec2 *texcoords = NULL;

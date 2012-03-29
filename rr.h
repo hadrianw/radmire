@@ -1,9 +1,4 @@
 #include <SDL/SDL.h>
-#include "rr_types.h"
-#include "rrgl.h"
-#include "rr_math.h"
-#include "rr_image.h"
-#include "rr_array.h"
 
 #define RR_SDL_MAX_BUTTONS 255
 

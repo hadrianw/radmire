@@ -1,7 +1,5 @@
 #include <SDL/SDL_opengl.h>
 
-extern struct RRVec2 rr_texcoords_identity[4];
-
 extern void rrgl_init(void);
 
 extern void rrgl_vertex_pointer(struct RRVec2 *pointer);
