@@ -2,10 +2,13 @@ TARGET = game-c
 SRCS := $(wildcard *.c)
 
 # includes and libs
-INCS = `pkg-config --cflags sdl SDL_image`
-LIBS = `pkg-config --libs sdl SDL_image gl glu` -lphysfs
+INCS = `pkg-config --cflags sdl SDL_image` \
+       -I../Chipmunk-Physics/include/chipmunk/
+LIBS = `pkg-config --libs sdl SDL_image gl glu` -lphysfs \
+       -L../Chipmunk-Physics/src/ -lchipmunk
 # OSX:
-#LIBS = `pkg-config --libs sdl SDL_image` -lphysfs -framework OpenGL
+#LIBS = `pkg-config --libs sdl SDL_image` -lphysfs -framework OpenGL \
+#       -L../Chipmunk-Physics/src/ -lchipmunk
 
 # flags
 CPPFLAGS = #-D

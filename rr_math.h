@@ -116,4 +116,3 @@ static inline struct RRvec2 rr_transformR_vect(const struct RRtransform t,
 
 	return res;
 }
-

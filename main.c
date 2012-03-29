@@ -1,6 +1,11 @@
 #include <SDL/SDL_opengl.h>
 #include <stdio.h>
 #include "rr.h"
+#include <chipmunk.h>
+
+#include "rrphysics.h"
+
+#include "utils.h"
 
 struct Object {
         struct RRtransform t;
@@ -11,6 +16,40 @@ struct RRArray objects = {
         .size = sizeof(struct Object)
 };
 
+cpVect grav = { 0, -50 };
+cpSpace *space;
+cpShape *ground;
+cpBody *ballBody;
+cpShape *ballShape;
+
+void physics_init()
+{
+        space = cpSpaceNew();
+        cpSpaceSetGravity(space, grav);
+
+        ground = cpSegmentShapeNew(space->staticBody, cpv(-75, -70), cpv(75, -75), 0);
+        cpShapeSetFriction(ground, 1);
+        cpSpaceAddShape(space, ground);
+
+        cpFloat radius = 16;
+        cpFloat mass = 1;
+        cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
+
+        ballBody = cpSpaceAddBody(space, cpBodyNew(mass, moment));
+        cpBodySetPos(ballBody, cpv(0, 0));
+
+        ballShape = cpSpaceAddShape(space, cpCircleShapeNew(ballBody, radius, cpvzero));
+        cpShapeSetFriction(ballShape, 0.7);
+}
+
+void physics_deinit()
+{
+        cpShapeFree(ballShape);
+        cpBodyFree(ballBody);
+        cpShapeFree(ground);
+        cpSpaceFree(space);
+}
+
 int main(int argc, char **argv)
 {
         if(rr_init(argc, argv)) {
@@ -18,15 +57,26 @@ int main(int argc, char **argv)
         }
 
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	struct RRTex *tex = rr_gettex(&rr_map, "atlas/src-net.png");
+	struct RRTex *tex = rr_gettex(&rr_map, "ball.png");
 	//struct RRTex *tex = rr_gettex(&rr_map, "square.png");
 
         struct Object mouse = {
                 rr_transform_identity,
-                { 150, 150 }
+                { 12, 12 }
         };
         
+        struct Object ball = {
+                rr_transform_identity,
+                { 32, 32 }
+        };
+        
+        physics_init();
+
+        struct RRvec2 line[] = {
+                { -75, -70 },
+                { 75, -75 }
+        };
+
         while(rr_running) {
                 rr_begin_frame();
                 if(rr_pressed_keys[SDLK_ESCAPE])
@@ -53,10 +103,20 @@ int main(int argc, char **argv)
                 rrgl_load_transform(&mouse.t);
                 rrgl_draw_rect(&mouse.s, 0);
 
+                ball.t = cp2rr_bodytransform(ballBody);
+                rrgl_load_transform(&ball.t);
+                rrgl_draw_rect(&ball.s, 0);
+
+                rrgl_vertex_pointer(line);
+                rrgl_load_transform(&rr_transform_identity);
+                rrgl_draw_arrays(GL_LINES, 0, LENGTH(line));
+
                 rr_end_scene();
+                cpSpaceStep(space, 1.0/60.0);
                 rr_end_frame();
         }
 
+        physics_deinit();
         rr_freemaptex(&rr_map);
         rr_deinit();
         return 0;
