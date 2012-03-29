@@ -8,8 +8,8 @@
 #include "utils.h"
 
 struct Object {
-        struct RRtransform t;
-        struct RRvec2 s;
+        struct RRTform t;
+        struct RRVec2 s;
 };
 
 struct RRArray objects = {
@@ -61,18 +61,18 @@ int main(int argc, char **argv)
 	//struct RRTex *tex = rr_gettex(&rr_map, "square.png");
 
         struct Object mouse = {
-                rr_transform_identity,
+                rr_tform_identity,
                 { 12, 12 }
         };
         
         struct Object ball = {
-                rr_transform_identity,
+                rr_tform_identity,
                 { 32, 32 }
         };
         
         physics_init();
 
-        struct RRvec2 line[] = {
+        struct RRVec2 line[] = {
                 { -75, -70 },
                 { 75, -75 }
         };
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
                         rr_running = false;
                 if(rr_changed_buttons[0] && rr_pressed_buttons[0]) {
                         struct Object new = {
-                                rr_transform_identity,
+                                rr_tform_identity,
                                 {50, 50}
                         };
                         new.t.pos = rr_abs_screen_mouse;
@@ -96,19 +96,19 @@ int main(int argc, char **argv)
 		rrgl_texcoord_pointer(tex->texcoords);
                 struct Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
-                        rrgl_load_transform(&p[i].t);
+                        rrgl_load_tform(&p[i].t);
                         rrgl_draw_rect(&p[i].s, 0);
                 }
                 mouse.t.pos = rr_abs_screen_mouse;
-                rrgl_load_transform(&mouse.t);
+                rrgl_load_tform(&mouse.t);
                 rrgl_draw_rect(&mouse.s, 0);
 
-                ball.t = cp2rr_bodytransform(ballBody);
-                rrgl_load_transform(&ball.t);
+                ball.t = cp2rr_bodytform(ballBody);
+                rrgl_load_tform(&ball.t);
                 rrgl_draw_rect(&ball.s, 0);
 
                 rrgl_vertex_pointer(line);
-                rrgl_load_transform(&rr_transform_identity);
+                rrgl_load_tform(&rr_tform_identity);
                 rrgl_draw_arrays(GL_LINES, 0, LENGTH(line));
 
                 rr_end_scene();

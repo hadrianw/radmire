@@ -1,15 +1,15 @@
-static inline struct RRvec2 cp2rr_vec2(cpVect v)
+static inline struct RRVec2 cp2rr_vec2(cpVect v)
 {
-        struct RRvec2 rv = { .x = v.x, .y = v.y };
+        struct RRVec2 rv = { .x = v.x, .y = v.y };
         return rv;
 }
 
-static inline struct RRtransform cp2rr_bodytransform(cpBody *body)
+static inline struct RRTform cp2rr_bodytform(cpBody *body)
 {
         if(!body)
-                return rr_transform_identity;
+                return rr_tform_identity;
 
-        struct RRtransform t = {
+        struct RRTform t = {
                 .pos = cp2rr_vec2(cpBodyGetPos(body)),
                 .col1 = cp2rr_vec2(cpBodyGetRot(body))
         };

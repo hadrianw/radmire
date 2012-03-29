@@ -138,8 +138,8 @@ struct RRTex *specline(struct RRArray *map, FILE *specfile)
 	tex = calloc(1, sizeof(tex[0]));
 
 	int nread = 0;
-	struct RRvec2 pos;
-	struct RRvec2 siz;
+	struct RRVec2 pos;
+	struct RRVec2 siz;
 	nread = fscanf(specfile, "%lf %lf %lf %lf ",
 	               &pos.x, &pos.y, &siz.x, &siz.y);
 	if(nread != 4

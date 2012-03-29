@@ -27,7 +27,7 @@ RRfloat rr_right;
 
 int rr_base;
 
-struct RRtransform rr_screen_transform;
+struct RRTform rr_screen_tform;
 RRfloat rr_width_factor = 0.0f;
 RRfloat rr_height_factor = 0.0f;
 
@@ -35,10 +35,10 @@ bool rr_pressed_keys[SDLK_LAST];
 bool rr_changed_keys[SDLK_LAST];
 bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS];
 bool rr_changed_buttons[RR_SDL_MAX_BUTTONS];
-struct RRvec2 rr_abs_mouse = {0.0f, 0.0f};
-struct RRvec2 rr_rel_mouse = {0.0f, 0.0f};
-struct RRvec2 rr_abs_screen_mouse = {0.0f, 0.0f};
-struct RRvec2 rr_rel_screen_mouse = {0.0f, 0.0f};
+struct RRVec2 rr_abs_mouse = {0.0f, 0.0f};
+struct RRVec2 rr_rel_mouse = {0.0f, 0.0f};
+struct RRVec2 rr_abs_screen_mouse = {0.0f, 0.0f};
+struct RRVec2 rr_rel_screen_mouse = {0.0f, 0.0f};
 bool rr_mouse_moved = false;
 bool rr_key_pressed = false;
 bool rr_button_pressed = false;
@@ -82,7 +82,7 @@ void rr_set_base_horizontal(int width, int height)
         rr_bottom = -rr_top;
 }
 
-void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top)
+void rr_set_screen_tform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top)
 {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -92,11 +92,11 @@ void rr_set_screen_transform(int width, int height, RRfloat left, RRfloat right,
 
         rr_width_factor = (right-left)/width;
         rr_height_factor = (bottom-top)/height;
-        rr_screen_transform = rr_transform_identity;
-        rr_screen_transform.col1.x = rr_width_factor;
-        rr_screen_transform.col2.y = rr_height_factor;
-        rr_screen_transform.pos.x = left;
-        rr_screen_transform.pos.y = top;
+        rr_screen_tform = rr_tform_identity;
+        rr_screen_tform.col1.x = rr_width_factor;
+        rr_screen_tform.col2.y = rr_height_factor;
+        rr_screen_tform.pos.x = left;
+        rr_screen_tform.pos.y = top;
 }
 
 void rr_resize(int width, int height, int base)
@@ -118,7 +118,7 @@ void rr_resize(int width, int height, int base)
                 break;
         }
         rr_base = base;
-        rr_set_screen_transform(width, height, rr_left, rr_right, rr_bottom, rr_top);
+        rr_set_screen_tform(width, height, rr_left, rr_right, rr_bottom, rr_top);
 }
 
 int rr_fullscreen_mode(int base)
@@ -225,9 +225,9 @@ void rr_begin_frame(void)
                         break;
                 }
         }
-        rr_abs_screen_mouse = rr_transform_vect(rr_screen_transform,
+        rr_abs_screen_mouse = rr_tform_vect(rr_screen_tform,
                         rr_abs_mouse); 
-        rr_rel_screen_mouse = rr_transformR_vect(rr_screen_transform,
+        rr_rel_screen_mouse = rr_tformR_vect(rr_screen_tform,
                         rr_rel_mouse); 
 }
 
@@ -303,7 +303,7 @@ int rr_init(int argc, char **argv)
         glPointSize(4.0f);
         rrgl_init();
         rrgl_color(rr_white);
-        rrgl_load_transform(&rr_transform_identity);
+        rrgl_load_tform(&rr_tform_identity);
 
         rr_step = 1 / rr_fps;
         rr_time_step = CLOCKS_PER_SEC / rr_fps;

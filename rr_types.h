@@ -17,27 +17,27 @@ typedef double RRfloat;
 typedef float RRfloat;
 #endif
 
-struct RRvec2 {
+struct RRVec2 {
         RRfloat x;
         RRfloat y;
 };
-extern const struct RRvec2 rr_vec2_zero;
-extern const struct RRvec2 rr_vec2_top_left;
-extern const struct RRvec2 rr_vec2_top_center;
-extern const struct RRvec2 rr_vec2_top_right;
-extern const struct RRvec2 rr_vec2_middle_left;
-extern const struct RRvec2 rr_vec2_center;
-extern const struct RRvec2 rr_vec2_middle_right;
-extern const struct RRvec2 rr_vec2_bottom_left;
-extern const struct RRvec2 rr_vec2_bottom_center;
-extern const struct RRvec2 rr_vec2_bottom_right;
+extern const struct RRVec2 rr_vec2_zero;
+extern const struct RRVec2 rr_vec2_top_left;
+extern const struct RRVec2 rr_vec2_top_center;
+extern const struct RRVec2 rr_vec2_top_right;
+extern const struct RRVec2 rr_vec2_middle_left;
+extern const struct RRVec2 rr_vec2_center;
+extern const struct RRVec2 rr_vec2_middle_right;
+extern const struct RRVec2 rr_vec2_bottom_left;
+extern const struct RRVec2 rr_vec2_bottom_center;
+extern const struct RRVec2 rr_vec2_bottom_right;
 
-struct RRtransform {
-        struct RRvec2 col1;
-        struct RRvec2 col2;
-        struct RRvec2 pos;
+struct RRTform {
+        struct RRVec2 col1;
+        struct RRVec2 col2;
+        struct RRVec2 pos;
 };
-extern const struct RRtransform rr_transform_identity;
+extern const struct RRTform rr_tform_identity;
 
 struct RRcolor {
         uint8_t red;
@@ -51,7 +51,7 @@ extern const struct RRcolor rr_red;
 extern const struct RRcolor rr_green;
 
 struct RRmesh {
-        struct RRvec2 *vertices;
+        struct RRVec2 *vertices;
         unsigned int allocated;
         unsigned int used;
 };
@@ -65,6 +65,6 @@ struct RRArray {
 
 struct RRTex {
         unsigned int handle;
-        struct RRvec2 texcoords[4];
+        struct RRVec2 texcoords[4];
 	char *name;
 };

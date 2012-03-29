@@ -1,20 +1,20 @@
 #include "rr_types.h"
 
-const struct RRvec2 rr_vec2_zero = {0.0f, 0.0f};
+const struct RRVec2 rr_vec2_zero = {0.0f, 0.0f};
 
-const struct RRvec2 rr_vec2_top_left      = {0.0f, 0.0f};
-const struct RRvec2 rr_vec2_top_center    = {0.5f, 0.0f};
-const struct RRvec2 rr_vec2_top_right     = {1.0f, 0.0f};
+const struct RRVec2 rr_vec2_top_left      = {0.0f, 0.0f};
+const struct RRVec2 rr_vec2_top_center    = {0.5f, 0.0f};
+const struct RRVec2 rr_vec2_top_right     = {1.0f, 0.0f};
 
-const struct RRvec2 rr_vec2_middle_left   = {0.0f, 0.5f};
-const struct RRvec2 rr_vec2_center        = {0.5f, 0.5f};
-const struct RRvec2 rr_vec2_middle_right  = {1.0f, 0.5f};
+const struct RRVec2 rr_vec2_middle_left   = {0.0f, 0.5f};
+const struct RRVec2 rr_vec2_center        = {0.5f, 0.5f};
+const struct RRVec2 rr_vec2_middle_right  = {1.0f, 0.5f};
 
-const struct RRvec2 rr_vec2_bottom_left   = {0.0f, 1.0f};
-const struct RRvec2 rr_vec2_bottom_center = {0.5f, 1.0f};
-const struct RRvec2 rr_vec2_bottom_right  = {1.0f, 1.0f};
+const struct RRVec2 rr_vec2_bottom_left   = {0.0f, 1.0f};
+const struct RRVec2 rr_vec2_bottom_center = {0.5f, 1.0f};
+const struct RRVec2 rr_vec2_bottom_right  = {1.0f, 1.0f};
 
-const struct RRtransform rr_transform_identity = {
+const struct RRTform rr_tform_identity = {
         {1.0f, 0.0f},
         {0.0f, 1.0f},
         {0.0f, 0.0f}

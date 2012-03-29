@@ -29,52 +29,52 @@ static inline unsigned int to_pow2(unsigned int v)
         return ++v;
 }
 
-static inline struct RRvec2 rr_vec2(RRfloat x, RRfloat y)
+static inline struct RRVec2 rr_vec2(RRfloat x, RRfloat y)
 {
-	struct RRvec2 v = { x, y };
+	struct RRVec2 v = { x, y };
 	return v;
 }
 
-static inline struct RRvec2 rr_vec2_plus(struct RRvec2 v1, struct RRvec2 v2)
+static inline struct RRVec2 rr_vec2_plus(struct RRVec2 v1, struct RRVec2 v2)
 {
-        struct RRvec2 tmp;
+        struct RRVec2 tmp;
         tmp.x = v1.x + v2.x;
         tmp.y = v1.y + v2.y;
         return tmp;
 }
 
-static inline struct RRvec2 rr_vec2_minus(struct RRvec2 v1, struct RRvec2 v2)
+static inline struct RRVec2 rr_vec2_minus(struct RRVec2 v1, struct RRVec2 v2)
 {
-        struct RRvec2 tmp;
+        struct RRVec2 tmp;
         tmp.x = v1.x - v2.x;
         tmp.y = v1.y - v2.y;
         return tmp;
 }
 
-static inline RRfloat rr_vec2_sqlen(struct RRvec2 v)
+static inline RRfloat rr_vec2_sqlen(struct RRVec2 v)
 {
         return v.x*v.x + v.y*v.y;
 }
 
-static inline RRfloat rr_vec2_len(struct RRvec2 v)
+static inline RRfloat rr_vec2_len(struct RRVec2 v)
 {
         return rr_sqrt(rr_vec2_sqlen(v));
 }
 
-static inline struct RRvec2 rr_transform_vect(const struct RRtransform t,
-                const struct RRvec2 v)
+static inline struct RRVec2 rr_tform_vect(const struct RRTform t,
+                const struct RRVec2 v)
 {       
-        struct RRvec2 res;
+        struct RRVec2 res;
 	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
 	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
 
 	return res;
 }
 
-static inline struct RRtransform rr_transform_mul(const struct RRtransform a,
-                const struct RRtransform b)
+static inline struct RRTform rr_tform_mul(const struct RRTform a,
+                const struct RRTform b)
 {       
-        struct RRtransform res;
+        struct RRTform res;
 	res.col1.x = a.col1.x * b.col1.x + a.col2.x * b.col1.y;
 	res.col2.x = a.col1.x * b.col2.x + a.col2.x * b.col2.y;
 	res.pos.x = a.col1.x * b.pos.x + a.col2.x * b.pos.y + a.pos.x;
@@ -85,7 +85,7 @@ static inline struct RRtransform rr_transform_mul(const struct RRtransform a,
 	return res;
 }
 
-static inline void rr_transform_set_angle(struct RRtransform *t,
+static inline void rr_tform_set_angle(struct RRTform *t,
                 RRfloat angle)
 {       
         RRfloat c = rr_cos(angle);
@@ -94,9 +94,9 @@ static inline void rr_transform_set_angle(struct RRtransform *t,
 	t->col1.y = s; t->col2.y = c;
 }
 
-static inline struct RRtransform rr_transform_from_vec2(const struct RRvec2 v)
+static inline struct RRTform rr_tform_from_vec2(const struct RRVec2 v)
 {       
-        struct RRtransform res;
+        struct RRTform res;
         RRfloat len = rr_vec2_len(v);
         RRfloat c = v.x / len;
         RRfloat s = v.y / len;
@@ -107,10 +107,10 @@ static inline struct RRtransform rr_transform_from_vec2(const struct RRvec2 v)
 	return res;
 }
 
-static inline struct RRvec2 rr_transformR_vect(const struct RRtransform t,
-                const struct RRvec2 v)
+static inline struct RRVec2 rr_tformR_vect(const struct RRTform t,
+                const struct RRVec2 v)
 {       
-        struct RRvec2 res;
+        struct RRVec2 res;
 	res.x = t.col1.x*v.x+t.col2.x*v.y;
 	res.y = t.col1.y*v.x+t.col2.y*v.y;
 

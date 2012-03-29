@@ -10,25 +10,25 @@
 #define RRGL_FLOAT_TYPE GL_FLOAT
 #endif
 
-struct RRvec2 rr_texcoords_identity[4] = {
+struct RRVec2 rr_texcoords_identity[4] = {
 	{0.0f, 1.0f},
 	{1.0f, 1.0f},
 	{1.0f, 0.0f},
 	{0.0f, 0.0f}
 };
 
-static struct RRvec2 *vertices = NULL;
+static struct RRVec2 *vertices = NULL;
 static struct RRcolor *colors = NULL;
-static struct RRvec2 *texcoords = NULL;
+static struct RRVec2 *texcoords = NULL;
 
 #define BATCH_VERTS 16384
-static struct RRvec2 batch_vertices[BATCH_VERTS];
+static struct RRVec2 batch_vertices[BATCH_VERTS];
 static struct RRcolor batch_colors[BATCH_VERTS];
-static struct RRvec2 batch_texcoords[BATCH_VERTS];
+static struct RRVec2 batch_texcoords[BATCH_VERTS];
 static unsigned int batch_count = 0;
 static GLenum batch_mode = GL_QUADS;
 
-static struct RRtransform transform;
+static struct RRTform tform;
 static struct RRcolor color;
 
 static GLuint active_texture = 0;
@@ -40,7 +40,7 @@ void rrgl_init(void)
         glEnableClientState(GL_COLOR_ARRAY);
 }
 
-void rrgl_vertex_pointer(struct RRvec2 *pointer)
+void rrgl_vertex_pointer(struct RRVec2 *pointer)
 {
         vertices = pointer;
 }
@@ -50,7 +50,7 @@ void rrgl_color_pointer(struct RRcolor *pointer)
         colors = pointer;
 }
 
-void rrgl_texcoord_pointer(struct RRvec2 *pointer)
+void rrgl_texcoord_pointer(struct RRVec2 *pointer)
 {
         texcoords = pointer;
 }
@@ -68,7 +68,7 @@ void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count)
         }
         for(i = 0; i < count; ++i)
                 batch_vertices[batch_count + i]
-                        = rr_transform_vect(transform, vertices[first + i]);
+                        = rr_tform_vect(tform, vertices[first + i]);
         if(colors)
                 memcpy(batch_colors + batch_count, colors + first,
                                 sizeof(*colors) * count);
@@ -95,7 +95,7 @@ void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
         }
         for(i = 0; i < count; ++i)
                 batch_vertices[batch_count + i]
-                        = rr_transform_vect(transform, vertices[indices[i]]);
+                        = rr_tform_vect(tform, vertices[indices[i]]);
         if(colors)
                 for(i = 0; i < count; ++i)
                         batch_colors[batch_count + i]
@@ -111,7 +111,7 @@ void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
         batch_count += count;
 }
 
-void rrgl_draw_rect(const struct RRvec2 *size, const struct RRvec2 *align)
+void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align)
 {
         if(!size)
                 return;
@@ -122,7 +122,7 @@ void rrgl_draw_rect(const struct RRvec2 *size, const struct RRvec2 *align)
              | /|
              |/ |
            0 '--' 1 */
-        struct RRvec2 vs[4] = {
+        struct RRVec2 vs[4] = {
                 {size->x *       - align->x , size->y * (align->y - 1.0f)},
                 {size->x * (1.0f - align->x), size->y * (align->y - 1.0f)},
                 {size->x * (1.0f - align->x), size->y *  align->y        },
@@ -155,9 +155,9 @@ void rrgl_color(struct RRcolor c)
         color = c;
 }
 
-void rrgl_load_transform(const struct RRtransform *t)
+void rrgl_load_tform(const struct RRTform *t)
 {
-        transform = *t;
+        tform = *t;
 }
 
 void rrgl_bind_texture(GLuint texture)
