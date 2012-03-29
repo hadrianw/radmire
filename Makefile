@@ -1,8 +1,13 @@
 include config.mk
 
-all: ${TARGET}
+SRC = main.c rr_array.c rr.c rrgl.c rr_image.c rr_types.c \
+      utf8offset.c utils.c \
+      contrib/IMG.c contrib/IMG_png.c contrib/physfsrwops.c
+OBJ = ${SRC:.c=.o}
 
-${TARGET}: ${OBJ}
+all: game-c
+
+game-c: ${OBJ}
 	@echo CC -o $@
 	@${CC} -o $@ $+ ${LDFLAGS}
 
