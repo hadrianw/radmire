@@ -1,19 +1,16 @@
 include config.mk
 
-SRC = atlas.c IMG_savepng.c
+SRC = atlas.c ../contrib/IMG_savepng.c \
+      ../contrib/IMG.c ../contrib/IMG_png.c
 OBJ = ${SRC:.c=.o}
 
 all: atlas
 
 .c.o:
 	@echo CC -c $<
-	@$(CC) -c $< $(CFLAGS)
+	@$(CC) -o $@ -c $< $(CFLAGS)
 
 ${OBJ}: config.mk
-
-include ${SRC:.c=.d}
-${SRC:.c=.d}:
-	touch $@
 
 atlas: ${OBJ}
 	@echo CC -o $@

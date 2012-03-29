@@ -1,10 +1,10 @@
-#include <SDL/SDL_image.h>
+#include "../contrib/SDL_image.h"
+#include "../contrib/IMG_savepng.h"
 #include <SDL/SDL_video.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "IMG_savepng.h"
 
 #define ispow2(X) (((X) & ((X) - 1)) == 0)
 #define LENGTH(X) (sizeof(X) / sizeof (X)[0])
