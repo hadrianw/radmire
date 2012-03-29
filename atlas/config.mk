@@ -9,7 +9,7 @@ CPPFLAGS = -D_SDL_main_h
 #CFLAGS   = -std=c99 -pedantic -Os -Wall ${INCS} ${CPPFLAGS} -MMD
 #LDFLAGS  = -s ${LIBS}
 CFLAGS   = -std=c99 -pedantic -O0 -g -pg -Wall ${INCS} ${CPPFLAGS} -MMD
-LDFLAGS  = -pg ${LIBS}
+LDFLAGS  = ${LIBS}
 
 # compiler and linker
 CC = cc
