@@ -1,6 +1,6 @@
 #include <SDL/SDL_opengl.h>
-#include "SDL_image.h"
-#include "physfsrwops.h"
+#include "contrib/SDL_image.h"
+#include "contrib/physfsrwops.h"
 #include "rr.h"
 #include "utils.h"
 

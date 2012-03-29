@@ -1,21 +1,19 @@
 include config.mk
 
-all: $(TARGET)
+all: ${TARGET}
 
-$(TARGET): $(SRCS:.c=.o)
+${TARGET}: ${OBJ}
 	@echo CC -o $@
-	@$(CC) -o $@ $+ $(LDFLAGS)
+	@${CC} -o $@ $+ ${LDFLAGS}
 
--include $(SRCS:.c=.d)
-
-$(SRCS:.c=.o): config.mk
+${OBJ}: config.mk
 
 .c.o:
 	@echo CC -c $<
-	@$(CC) -c $< $(CFLAGS)
+	@${CC} -o $@ -c $< ${CFLAGS}
 
 clean:
 	@echo cleaning
-	@rm -f $(TARGET) *.o *.d
+	@rm -f ${TARGET} ${OBJ}
 
 .PHONY: all clean
