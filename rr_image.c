@@ -1,7 +1,12 @@
 #include <SDL/SDL_opengl.h>
 #include "contrib/SDL_image.h"
 #include "contrib/physfsrwops.h"
+
+#include "rr_types.h"
+#include "rr_math.h"
 #include "rr.h"
+#include "rr_image.h"
+#include "rr_array.h"
 #include "utils.h"
 
 SDL_Surface *rr_loadimg(const char *path)

@@ -1,10 +1,12 @@
-#include "utils.h"
-
-#include <physfs.h>
 #include <time.h>
 #include <sys/select.h>
+#include <physfs.h>
 
+#include "rr_types.h"
+#include "rr_math.h"
+#include "utils.h"
 #include "rr.h"
+#include "rrgl.h"
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 #define COLOR_SHIFT(X) (3 - (X))
