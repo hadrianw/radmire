@@ -2,7 +2,8 @@ include config.mk
 
 SRC = main.c rr_array.c rr.c rrgl.c rr_image.c rr_types.c \
       utf8offset.c utils.c \
-      contrib/IMG.c contrib/IMG_png.c contrib/physfsrwops.c
+      contrib/IMG.c contrib/IMG_png.c contrib/physfsrwops.c \
+      ${PLATFORM}
 OBJ = ${SRC:.c=.o}
 
 all: game-c

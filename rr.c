@@ -1,6 +1,7 @@
 #include <time.h>
-#include <sys/select.h>
 #include <physfs.h>
+
+extern void rr_sleep(clock_t iv);
 
 #include "rr_types.h"
 #include "rr_math.h"
@@ -262,10 +263,7 @@ void rr_end_frame(void)
 
         if(rr_time_diff < rr_time_step) {
                 rr_time_diff = rr_time_step - rr_time_diff;
-                struct timeval tv = {
-                        .tv_usec = rr_time_diff * 1000000 / CLOCKS_PER_SEC
-                };
-                select(0, 0, 0, 0, &tv);
+		rr_sleep(rr_time_diff);
                 ticks++;
                 if(ticks == rr_fps) {
                         printf("%lf\n", rr_time_diff / (double)CLOCKS_PER_SEC);
