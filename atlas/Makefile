@@ -1,20 +1,28 @@
 include config.mk
 
-SRC = atlas.c ../contrib/IMG_savepng.c \
-      ../contrib/IMG.c ../contrib/IMG_png.c
-OBJ = ${SRC:.c=.o}
-
 all: atlas
 
-.c.o:
-	@echo CC -c $<
-	@$(CC) -o $@ -c $< $(CFLAGS)
+include ../contrib/SDL_image.mk
+SDLIMAGESRC := ${SDLIMAGESRC:%=../%}
+SDLIMAGEOBJ := ${SDLIMAGEOBJ:%=../%}
+SDLIMAGEDEP := ${SDLIMAGEDEP:%=../%}
 
-${OBJ}: config.mk
+SRC = atlas.c ../contrib/IMG_savepng.c \
+      ${SDLIMAGESRC}
+OBJ = ${SRC:.c=.o}
 
 atlas: ${OBJ}
 	@echo CC -o $@
 	@$(CC) -o $@ $+ $(LDFLAGS)
+
+${OBJ}: config.mk
+atlas.o: ${SDLIMAGEDEP} ../contrib/IMG_savepng.h
+${SDLIMAGEOBJ}: ${SDLIMAGEDEP}
+../contrib/IMG_savepng.o: ../contrib/IMG_savepng.h
+
+.c.o:
+	@echo CC -c $<
+	@$(CC) -o $@ -c $< $(CFLAGS)
 
 clean:
 	@echo cleaning

@@ -1,5 +1,5 @@
 # includes and libs
-INCS = `pkg-config --cflags sdl SDL_image libpng`
+INCS = `pkg-config --cflags sdl libpng`
 LIBS = `pkg-config --libs-only-L sdl` \
        `pkg-config --libs-only-l sdl` \
        `pkg-config --libs libpng`
