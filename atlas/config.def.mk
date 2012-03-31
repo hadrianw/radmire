@@ -5,8 +5,8 @@ LIBS = `pkg-config --libs-only-L sdl` \
        `pkg-config --libs libpng`
 
 #### Win
-#INCS = -I../../SDL/include/
-#LIBS = -lmingw32 -L../../SDL/lib/ -lSDL -lpng -lz
+INCS = -I../../SDL/include/
+LIBS = -lmingw32 -L../../SDL/lib/ -lSDL -lpng -lz
 
 # flags
 CPPFLAGS = -D_SDL_main_h

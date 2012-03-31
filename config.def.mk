@@ -6,18 +6,18 @@ LIBS = `pkg-config --libs sdl gl glu libpng` -lphysfs \
 PLATFORM = posix/rrsleep.c
 
 #### Win
-#INCS = -I../SDL/include/ -DNO_STDIO_REDIRECT \
-#       -I../physfs/ \
-#       -I../Chipmunk-Physics/include/chipmunk/
-#LIBS = -lmingw32 \
-#       -L../SDL/lib/ -lSDLmain -lSDL -lopengl32 -lglu32 \
-#       -lpng -L../physfs/ -lphysfs -lz \
-#       -L../Chipmunk-Physics/src/ -lchipmunk
-#PLATFORM = win/SDL_win32_main.c win/rrsleep.c
+INCS = -I../SDL/include/ -DNO_STDIO_REDIRECT \
+       -I../physfs/ \
+       -I../Chipmunk-Physics/include/chipmunk/
+LIBS = -lmingw32 \
+       -L../SDL/lib/ -lSDLmain -lSDL -lopengl32 -lglu32 \
+       -lpng -L../physfs/ -lphysfs -lz \
+       -L../Chipmunk-Physics/src/ -lchipmunk
+PLATFORM = win/SDL_win32_main.c win/rrsleep.c
 
 #### OSX:
-#LIBS = `pkg-config --libs sdl libpng` -lphysfs -framework OpenGL \
-#       -L../Chipmunk-Physics/src/ -lchipmunk
+LIBS = `pkg-config --libs sdl libpng` -lphysfs -framework OpenGL \
+       -L../Chipmunk-Physics/src/ -lchipmunk
 
 # flags
 CPPFLAGS = #-D
