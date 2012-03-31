@@ -1,6 +1,7 @@
 *.d
 *.o
 *.swp
+config.mk
 game-c
 gmon.out
 atlas/atlas
