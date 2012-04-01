@@ -84,8 +84,8 @@ struct Pin {
 };
 
 struct Pin jointspec[] = {
-	{BP_LEFT_HAND, BP_TORSO, {11, 0}, {0, 0}},
-	{BP_LEFT_LEG, BP_TORSO, {21, 0}, {0, 40}}
+	{BP_LEFT_HAND, BP_TORSO, {5, 10}, {-20, 25}},
+	{BP_LEFT_LEG, BP_TORSO, {10, 35}, {-20, -25}}
 };
 
 cpShape *shps[BP_COUNT] = { 0 };
@@ -138,6 +138,7 @@ int main(int argc, char **argv)
 				bods[p->body2],
 				p->anchor1, p->anchor2);
 		cpSpaceAddConstraint(space, joints[i]);
+		cpPinJointSetDist(joints[i], 0.1f);
 	}
 
         while(rr_running) {
