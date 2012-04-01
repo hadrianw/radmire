@@ -158,6 +158,7 @@ void rrgl_bind_texture(GLuint texture)
         if(active_texture == texture)
                 return;
 
+	rrgl_flush();
         glBindTexture(GL_TEXTURE_2D, texture);
         active_texture = texture;
 }
