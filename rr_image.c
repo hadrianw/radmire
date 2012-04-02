@@ -24,6 +24,56 @@ SDL_Surface *rr_formatimg(SDL_Surface *src)
         return SDL_ConvertSurface(src, &rr_format, SDL_SWSURFACE);
 }
 
+struct RRTex *rr_loadrrtex(const char *path)
+{
+	struct RRTex *tex = NULL;
+        SDL_Surface *orig = NULL;
+	SDL_Surface *pow2 = NULL;
+        SDL_Surface *conv = NULL;
+        unsigned int handle = 0;
+
+        orig = rr_loadimg(path);
+        if(!orig)
+                goto out_orig;
+
+	pow2 = rr_pow2img(orig);
+	if(!pow2)
+		goto out_pow2;
+
+        conv = rr_formatimg(pow2);
+        if(!conv)
+                goto out_conv;
+
+        handle = rr_maketex(conv);
+        SDL_FreeSurface(conv);
+	if(!handle)
+		goto out_conv;
+
+        tex = malloc(sizeof(tex[0]));
+
+        tex->handle = handle;
+
+	struct RRVec2 s = {
+		orig->w / (double)pow2->w,
+		orig->h / (double)pow2->h
+	};
+	tex->texcoords[0] = rr_vec2(0, s.y);
+	tex->texcoords[1] = s;
+	tex->texcoords[2] = rr_vec2(s.x, 0);
+	tex->texcoords[3] = rr_vec2_zero;
+
+        tex->name = malloc((strlen(path) + 1) * sizeof(path[0]));
+        strcpy(tex->name, path);
+
+out_conv:
+	if(orig != pow2)
+		SDL_FreeSurface(pow2);
+out_pow2:
+        SDL_FreeSurface(orig);
+out_orig:
+        return tex;
+}
+
 unsigned int rr_loadtex(const char *path)
 {
         unsigned int handle = 0;
@@ -63,24 +113,17 @@ unsigned int rr_maketex(SDL_Surface *surface)
                 return 0;
         }
 
-        SDL_Surface *pow2 = rr_pow2img(surface);
-        if(!pow2)
-                return 0;
-        
         glGenTextures(1, &handle);   
 	glBindTexture(GL_TEXTURE_2D, handle);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 
-	glTexImage2D(GL_TEXTURE_2D, 0, pow2->format->BytesPerPixel,
-                        pow2->w, pow2->h, 0, GL_RGBA, type,
-                        pow2->pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, surface->format->BytesPerPixel,
+                        surface->w, surface->h, 0, GL_RGBA, type,
+                        surface->pixels);
 
 	/*gluBuild2DMipmaps*/
-
-        if(pow2 !=surface)
-                SDL_FreeSurface(pow2);
 
         return handle;
 }
@@ -226,15 +269,7 @@ struct RRTex *rr_gettex(struct RRArray *map, const char *name)
                 return tex;
 
         printf("not found: %s, loading\n", name);
-        unsigned int handle = rr_loadtex(name);
-        if(!handle)
-                return NULL;
-
-        tex = malloc(sizeof(tex[0]));
-        tex->handle = handle;
-        memcpy(tex->texcoords, rr_texcoords_identity, sizeof(tex->texcoords));
-        tex->name = malloc((strlen(name) + 1) * sizeof(name[0]));
-        strcpy(tex->name, name);
+	tex = rr_loadrrtex(name);
         rrarray_push(map, &tex);
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);

@@ -4,6 +4,7 @@ extern struct RRArray rr_map;
 
 SDL_Surface *rr_loadimg(const char *path);
 SDL_Surface *rr_formatimg(SDL_Surface *src);
+extern struct RRTex *rr_loadrrtex(const char *path);
 unsigned int rr_loadtex(const char *path);
 unsigned int rr_maketex(SDL_Surface *surface);
 SDL_Surface *rr_pow2img(SDL_Surface *src);
