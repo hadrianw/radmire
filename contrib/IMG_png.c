@@ -61,9 +61,6 @@
 
 #include <SDL/SDL_endian.h>
 
-#ifdef macintosh
-#define MACOS
-#endif
 #include <png.h>
 
 /* Check for the older version of libpng */

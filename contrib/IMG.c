@@ -66,7 +66,6 @@ void IMG_Quit()
 	initialized = 0;
 }
 
-#if !defined(__APPLE__) || defined(SDL_IMAGE_USE_COMMON_BACKEND)
 /* Load an image from a file */
 SDL_Surface *IMG_Load(const char *file)
 {
@@ -81,7 +80,6 @@ SDL_Surface *IMG_Load(const char *file)
     }
     return IMG_LoadTyped_RW(src, 1, ext);
 }
-#endif
 
 /* Load an image from an SDL datasource (for compatibility) */
 SDL_Surface *IMG_Load_RW(SDL_RWops *src, int freesrc)
