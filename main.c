@@ -26,7 +26,7 @@ void physics_init()
         space = cpSpaceNew();
         cpSpaceSetGravity(space, grav);
 
-        ground = cpSegmentShapeNew(space->staticBody, cpv(-100, -75), cpv(100, -75), 0);
+        ground = cpSegmentShapeNew(space->staticBody, cpv(-100, -70), cpv(100, -75), 0);
         cpShapeSetFriction(ground, 1);
         cpSpaceAddShape(space, ground);
 
@@ -116,8 +116,8 @@ int main(int argc, char **argv)
         physics_init();
 
         struct RRVec2 line[] = {
-                { -75, -70 },
-                { 75, -75 }
+                { -100, -70 },
+                { 100, -75 }
         };
 
         for(int i = 0; i < BP_COUNT; i++) {
