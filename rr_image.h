@@ -2,12 +2,12 @@
 
 extern struct RRArray rr_map;
 
-SDL_Surface *rr_loadimg(const char *path);
-SDL_Surface *rr_formatimg(SDL_Surface *src);
+extern SDL_Surface *rr_loadimg(const char *path);
+extern SDL_Surface *rr_formatimg(SDL_Surface *src);
 extern struct RRTex *rr_loadrrtex(const char *path);
-unsigned int rr_loadtex(const char *path);
-unsigned int rr_maketex(SDL_Surface *surface);
-SDL_Surface *rr_pow2img(SDL_Surface *src);
+extern unsigned int rr_loadtex(const char *path);
+extern unsigned int rr_maketex(SDL_Surface *surface);
+extern SDL_Surface *rr_pow2img(SDL_Surface *src);
 
 extern int rr_addatlas(struct RRArray *map, const char *spc, const char *img);
 extern struct RRTex *rr_gettex(struct RRArray *map, const char *name);
