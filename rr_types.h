@@ -65,7 +65,7 @@ struct RRArray {
 
 struct RRTex {
         unsigned int handle;
-        struct RRVec2 texcoords[4];
+        struct RRVec2 coords[4];
 	char *name;
 };
 

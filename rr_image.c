@@ -57,10 +57,10 @@ struct RRTex *rr_loadrrtex(const char *path)
 		orig->w / (double)pow2->w,
 		orig->h / (double)pow2->h
 	};
-	tex->texcoords[0] = rr_vec2(0, s.y);
-	tex->texcoords[1] = s;
-	tex->texcoords[2] = rr_vec2(s.x, 0);
-	tex->texcoords[3] = rr_vec2_zero;
+	tex->coords[0] = rr_vec2(0, s.y);
+	tex->coords[1] = s;
+	tex->coords[2] = rr_vec2(s.x, 0);
+	tex->coords[3] = rr_vec2_zero;
 
         tex->name = malloc((strlen(path) + 1) * sizeof(path[0]));
         strcpy(tex->name, path);
@@ -194,10 +194,10 @@ struct RRTex *specline(struct RRArray *map, FILE *specfile)
            || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
            || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
 		goto free;
-	tex->texcoords[0] = rr_vec2(pos.x, pos.y + siz.y);
-	tex->texcoords[1] = rr_vec2_plus(pos, siz);
-	tex->texcoords[2] = rr_vec2(pos.x + siz.x, pos.y);
-	tex->texcoords[3] = pos;
+	tex->coords[0] = rr_vec2(pos.x, pos.y + siz.y);
+	tex->coords[1] = rr_vec2_plus(pos, siz);
+	tex->coords[2] = rr_vec2(pos.x + siz.x, pos.y);
+	tex->coords[3] = pos;
 
 	fgets(buff, LENGTH(buff), specfile);	
 	size_t bufflen = strlen(buff);
