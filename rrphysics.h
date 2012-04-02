@@ -1,3 +1,9 @@
+static inline cpVect rr2cp_vec2(struct RRVec2 v)
+{
+        cpVect cv = { .x = v.x, .y = v.y };
+        return cv;
+}
+
 static inline struct RRVec2 cp2rr_vec2(cpVect v)
 {
         struct RRVec2 rv = { .x = v.x, .y = v.y };

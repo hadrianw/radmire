@@ -141,11 +141,14 @@ int main(int argc, char **argv)
 		cpPinJointSetDist(joints[i], 0.1f);
 	}
 
+	cpConstraint *mouseJoint = NULL;
+	cpBody *mouseBody = cpBodyNew(INFINITY, INFINITY);
+
         while(rr_running) {
                 rr_begin_frame();
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
-                if(rr_changed_buttons[0] && rr_pressed_buttons[0]) {
+                if(rr_changed_buttons[1] && rr_pressed_buttons[1]) {
                         struct Object new = {
                                 rr_tform_identity,
                                 {50, 50}
@@ -153,6 +156,25 @@ int main(int argc, char **argv)
                         new.t.pos = rr_abs_screen_mouse;
                         rrarray_push(&objects, &new);
                 }
+                if(rr_changed_buttons[0]) {
+			if(rr_pressed_buttons[0]) {
+				cpShape *shape = cpSpacePointQueryFirst(space, rr2cp_vec2(rr_abs_screen_mouse),
+						0xFFFFFFFF, CP_NO_GROUP);
+				if(shape){
+					cpBody *body = shape->body;
+					mouseJoint = cpPivotJointNew2(mouseBody, body, cpvzero,
+							cpBodyWorld2Local(body, rr2cp_vec2(rr_abs_screen_mouse)));
+					mouseJoint->maxForce = 50000.0f;
+					mouseJoint->errorBias = cpfpow(1.0f - 0.15f, 60.0f);
+					cpSpaceAddConstraint(space, mouseJoint);
+				}
+			} else if(mouseJoint) {
+				cpSpaceRemoveConstraint(space, mouseJoint);
+				cpConstraintFree(mouseJoint);
+				mouseJoint = NULL;
+			}
+		}
+		cpBodySetPos(mouseBody, rr2cp_vec2(rr_abs_screen_mouse));
 
                 rr_begin_scene();
 
