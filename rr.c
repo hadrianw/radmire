@@ -266,7 +266,7 @@ void rr_end_frame(void)
 		rr_sleep(rr_time_diff);
                 ticks++;
                 if(ticks == rr_fps) {
-                        printf("%lf\n", rr_time_diff / (double)CLOCKS_PER_SEC);
+                        printf("%f\n", rr_time_diff / (double)CLOCKS_PER_SEC);
                         ticks = 0;
                 }
         }

@@ -189,7 +189,7 @@ void genatlas()
                 else
                         len = strlen(source[i].name);
 
-		fprintf(spec, "%.8lf %.8lf %.8lf %.8lf %.*s\n",
+		fprintf(spec, "%.8f %.8f %.8f %.8f %.*s\n",
 		        node->rect.x * invwidth, node->rect.y * invheight,
 		        node->rect.w * invwidth, node->rect.h * invheight,
 		        len, source[i].name);
