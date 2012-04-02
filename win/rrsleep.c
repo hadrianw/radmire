@@ -3,5 +3,5 @@
 
 void rr_sleep(clock_t iv)
 {
-	SDL_Delay(tv * 1000 / CLOCKS_PER_SEC);
+	SDL_Delay(iv * 1000 / CLOCKS_PER_SEC);
 }
