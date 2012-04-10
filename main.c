@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "radmire.h"
 #include <chipmunk.h>
+#include <enet/enet.h>
 
 #include "rrphysics.h"
 
@@ -92,12 +93,108 @@ cpShape *shps[BP_COUNT] = { 0 };
 cpBody *bods[BP_COUNT] = { 0 };
 cpConstraint *joints[LENGTH(jointspec)] = { 0 };
 
+static ENetHost *client = NULL;
+static ENetPeer *peer = NULL;
+static ENetEvent ev;
+
+void cleanup()
+{
+	puts("rrclient: cleanup");
+	if(peer) {
+		enet_peer_disconnect(peer, 0);
+		while(enet_host_service(client, &ev, 3000) > 0) {
+			if(ev.type == ENET_EVENT_TYPE_RECEIVE)
+				enet_packet_destroy(ev.packet);
+			else if(ev.type == ENET_EVENT_TYPE_DISCONNECT) {
+				peer = NULL;
+				break;
+			}
+		}
+	}
+	if(peer)
+		enet_peer_reset(peer);
+	enet_host_destroy(client);
+	enet_deinitialize();
+}
+
+static void evconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: connected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = "Client information";
+}
+
+static void evreceive(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: packet[%zu] %x:%u/%u: %s\n",
+	       ev->packet->dataLength,
+	       ev->peer->address.host,
+	       ev->peer->address.port,
+	       ev->channelID,
+	       ev->packet->data);
+	enet_packet_destroy(ev->packet);
+}
+
+static void evdisconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: disconnected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = NULL;
+}
+
+static void (*handler[ENET_EVENT_TYPE_COUNT])(ENetEvent *) = {
+	[ENET_EVENT_TYPE_CONNECT] = evconnect,
+	[ENET_EVENT_TYPE_RECEIVE] = evreceive,
+	[ENET_EVENT_TYPE_DISCONNECT] = evdisconnect
+};
+
 
 int main(int argc, char **argv)
 {
         if(rr_init(argc, argv)) {
                 return -1;
         }
+
+	const char *servername = "localhost";
+	if(argc > 1)
+		servername = argv[1];
+	if(enet_initialize()) {
+		fputs("rrclient: couldn't init ENet\n", stderr);
+		return EXIT_FAILURE;
+	}
+	client = enet_host_create(NULL, 1, 2, 57600 / 8, 14400 / 8);
+	if(!client) {
+		fputs("rrclient: couldn't create client host\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+	ENetAddress address;
+	enet_address_set_host(&address, servername);
+	address.port = 44547;
+	peer = enet_host_connect(client, &address, 2, 0);    
+	if(!peer) {
+		fprintf(stderr, "rrclient: couldn't connect to %s\n", servername);
+		exit(EXIT_FAILURE);
+	}
+	if(enet_host_service(client, &ev, 3000) > 0
+	   && ev.type == ENET_EVENT_TYPE_CONNECT) {
+		evconnect(&ev);
+	} else {
+		enet_peer_reset(peer);
+		fprintf(stderr, "rrclient: couldn't connect to %s\n", servername);
+		exit(EXIT_FAILURE);
+	}
+
 
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	struct RRTex *tex = rr_gettex(&rr_map, "ball.png");
@@ -146,6 +243,9 @@ int main(int argc, char **argv)
 
         while(rr_running) {
                 rr_begin_frame();
+		while(enet_host_service(client, &ev, 0) > 0)
+			if(handler[ev.type])
+				handler[ev.type](&ev);
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 if(rr_changed_buttons[1] && rr_pressed_buttons[1]) {

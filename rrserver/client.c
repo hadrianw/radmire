@@ -2,11 +2,26 @@
 #include <signal.h>
 #include <stdio.h>
 
-ENetHost *client = NULL;
+static ENetHost *client = NULL;
+static ENetPeer *peer = NULL;
+static ENetEvent ev;
 
 void cleanup()
 {
 	puts("rrclient: cleanup");
+	if(peer) {
+		enet_peer_disconnect(peer, 0);
+		while(enet_host_service(client, &ev, 3000) > 0) {
+			if(ev.type == ENET_EVENT_TYPE_RECEIVE)
+				enet_packet_destroy(ev.packet);
+			else if(ev.type == ENET_EVENT_TYPE_DISCONNECT) {
+				peer = NULL;
+				break;
+			}
+		}
+	}
+	if(peer)
+		enet_peer_reset(peer);
 	enet_host_destroy(client);
 	enet_deinitialize();
 }
@@ -79,10 +94,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	ENetEvent ev;
-
 	ENetAddress address;
-	ENetPeer *peer;
 	enet_address_set_host(&address, servername);
 	address.port = 44547;
 
