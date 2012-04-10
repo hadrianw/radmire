@@ -2,21 +2,63 @@
 #include <signal.h>
 #include <stdio.h>
 
-ENetHost *server = NULL;
+static ENetHost *server = NULL;
 
-void cleanup()
+static void cleanup()
 {
 	puts("rrserver: cleanup");
 	enet_host_destroy(server);
 	enet_deinitialize();
 }
 
-void sigint_handler(int sig)
+static void sigint_handler(int sig)
 {
 	cleanup();
 	signal(SIGINT, SIG_DFL);
 	kill(getpid(), SIGINT);
 }
+
+static void evconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrserver: connected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = "Client information";
+}
+
+static void evreceive(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrserver: packet[%zu] %x:%u/%u: %s\n",
+	       ev->packet->dataLength,
+	       ev->peer->address.host,
+	       ev->peer->address.port,
+	       ev->channelID,
+	       ev->packet->data);
+	enet_packet_destroy(ev->packet);
+}
+
+static void evdisconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrserver: disconnected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = NULL;
+}
+
+static void (*handler[ENET_EVENT_TYPE_COUNT])(ENetEvent *) = {
+	[ENET_EVENT_TYPE_CONNECT] = evconnect,
+	[ENET_EVENT_TYPE_RECEIVE] = evreceive,
+	[ENET_EVENT_TYPE_DISCONNECT] = evdisconnect
+};
 
 int main(int argc, char **argv)
 {
@@ -36,35 +78,11 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	ENetEvent event;
+	ENetEvent ev;
 	for(;;) {
-		while(enet_host_service(server, &event, 1000) >= 0) {
-			switch(event.type) {
-			case ENET_EVENT_TYPE_CONNECT:
-				printf("rrserver: connected: %x:%u\n", 
-				       event.peer->address.host,
-				       event.peer->address.port);
-				event.peer->data = "Client information";
-				break;
-			case ENET_EVENT_TYPE_RECEIVE:
-				printf("rrserver: packet[%zu] %x:%u/%u: %s\n",
-				       event.packet->dataLength,
-				       event.peer->address.host,
-				       event.peer->address.port,
-				       event.channelID,
-				       event.packet->data);
-				enet_packet_destroy(event.packet);
-				break;
-			case ENET_EVENT_TYPE_DISCONNECT:
-				printf("rrserver: disconnected: %x:%u\n", 
-				       event.peer->address.host,
-				       event.peer->address.port);
-				event.peer->data = NULL;
-				break;
-			case ENET_EVENT_TYPE_NONE:
-				break;
-			}
-		}
+		while(enet_host_service(server, &ev, 1000) >= 0)
+			if(handler[ev.type])
+				handler[ev.type](&ev);
 	}
 
 	return 0;

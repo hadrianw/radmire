@@ -18,6 +18,48 @@ void sigint_handler(int sig)
 	kill(getpid(), SIGINT);
 }
 
+static void evconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: connected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = "Client information";
+}
+
+static void evreceive(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: packet[%zu] %x:%u/%u: %s\n",
+	       ev->packet->dataLength,
+	       ev->peer->address.host,
+	       ev->peer->address.port,
+	       ev->channelID,
+	       ev->packet->data);
+	enet_packet_destroy(ev->packet);
+}
+
+static void evdisconnect(ENetEvent *ev)
+{
+	if(!ev)
+		return;
+
+	printf("rrclient: disconnected: %x:%u\n", 
+	       ev->peer->address.host,
+	       ev->peer->address.port);
+	ev->peer->data = NULL;
+}
+
+static void (*handler[ENET_EVENT_TYPE_COUNT])(ENetEvent *) = {
+	[ENET_EVENT_TYPE_CONNECT] = evconnect,
+	[ENET_EVENT_TYPE_RECEIVE] = evreceive,
+	[ENET_EVENT_TYPE_DISCONNECT] = evdisconnect
+};
+
 int main(int argc, char **argv)
 {
 	const char *servername = "localhost";
@@ -37,7 +79,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	ENetEvent event;
+	ENetEvent ev;
 
 	ENetAddress address;
 	ENetPeer *peer;
@@ -50,37 +92,19 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if(enet_host_service(client, &event, 5000) > 0
-	   && event.type == ENET_EVENT_TYPE_CONNECT) {
-		printf("rrclient: connected to %s", servername);
+	if(enet_host_service(client, &ev, 3000) > 0
+	   && ev.type == ENET_EVENT_TYPE_CONNECT) {
+		evconnect(&ev);
 	} else {
 		enet_peer_reset(peer);
-		fprintf(stderr, "rrclient: couldn't connect to %s", servername);
+		fprintf(stderr, "rrclient: couldn't connect to %s\n", servername);
 		exit(EXIT_FAILURE);
 	}
 
 	for(;;) {
-		while(enet_host_service(client, &event, 1000) >= 0) {
-			switch(event.type) {
-			case ENET_EVENT_TYPE_RECEIVE:
-				printf("rrclient: packet[%zu] %x:%u/%u: %s\n",
-				       event.packet->dataLength,
-				       event.peer->address.host,
-				       event.peer->address.port,
-				       event.channelID,
-				       event.packet->data);
-				enet_packet_destroy(event.packet);
-				break;
-			case ENET_EVENT_TYPE_DISCONNECT:
-				printf("rrclient: disconnected: %x:%u\n", 
-				       event.peer->address.host,
-				       event.peer->address.port);
-				event.peer->data = NULL;
-				exit(0);
-			case ENET_EVENT_TYPE_NONE:
-			default:
-				break;
-			}
+		while(enet_host_service(client, &ev, 1000) >= 0) {
+			if(handler[ev.type])
+				handler[ev.type](&ev);
 		}
 	}
 
