@@ -6,3 +6,5 @@ game-c
 gmon.out
 atlas/atlas
 test/test
+rrserver/rrserver
+rrserver/rrclient
