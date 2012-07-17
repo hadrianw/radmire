@@ -188,7 +188,7 @@ struct RRTex *specline(struct RRArray *map, FILE *specfile)
 	int nread = 0;
 	struct RRVec2 pos;
 	struct RRVec2 siz;
-	nread = fscanf(specfile, "%f %f %f %f ",
+	nread = fscanf(specfile, "%lf %lf %lf %lf ",
 	               &pos.x, &pos.y, &siz.x, &siz.y);
 	if(nread != 4
            || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
