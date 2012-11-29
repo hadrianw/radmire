@@ -15,6 +15,13 @@ extern void rr_sleep(clock_t iv);
 #define COLOR_SHIFT(X) (X)
 #endif
 
+static void (*set_base_handler[])(int, int) = {
+	[RR_DIAGONAL] = rr_set_base_diagonal,
+        [RR_VERTICAL] = rr_set_base_vertical,
+        [RR_NONE_BASE] = rr_set_base_none,
+        [RR_HORIZONTAL] = rr_set_base_horizontal
+};
+
 int rr_width = -1;
 int rr_height = -1;
 int rr_bpp = -1;
@@ -106,20 +113,7 @@ void rr_resize(int width, int height, int base)
 {
         glViewport(0, 0, width, height);
 
-        switch(base) {
-        case RR_DIAGONAL:
-                rr_set_base_diagonal(width, height);
-                break;
-        case RR_VERTICAL:
-                rr_set_base_vertical(width, height);
-                break;
-        case RR_NONE_BASE:
-                rr_set_base_none(width, height);
-                break;
-        case RR_HORIZONTAL:
-                rr_set_base_horizontal(width, height);
-                break;
-        }
+ 	set_base_handler[base](width, height);
         rr_base = base;
         rr_set_screen_tform(width, height, rr_left, rr_right, rr_bottom, rr_top);
 }
