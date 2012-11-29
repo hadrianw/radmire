@@ -34,10 +34,10 @@ struct RRTform rr_screen_tform;
 RRfloat rr_width_factor = 0.0f;
 RRfloat rr_height_factor = 0.0f;
 
-bool rr_pressed_keys[SDLK_LAST];
-bool rr_changed_keys[SDLK_LAST];
-bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS];
-bool rr_changed_buttons[RR_SDL_MAX_BUTTONS];
+bool rr_pressed_keys[SDLK_LAST] = { false };
+bool rr_changed_keys[SDLK_LAST] = { false };
+bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS] = { false };
+bool rr_changed_buttons[RR_SDL_MAX_BUTTONS] = { false };
 struct RRVec2 rr_abs_mouse = {0.0f, 0.0f};
 struct RRVec2 rr_rel_mouse = {0.0f, 0.0f};
 struct RRVec2 rr_abs_screen_mouse = {0.0f, 0.0f};
@@ -289,10 +289,6 @@ int rr_init(int argc, char **argv)
 
         SDL_WM_SetCaption("Radmire", NULL);
         SDL_EnableKeyRepeat(0, 0);
-        for(unsigned int i=0; i < SDLK_LAST; ++i)
-                rr_pressed_keys[i] = false;
-        for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
-                rr_pressed_buttons[i] = false;
         glDisable(GL_CULL_FACE);
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
