@@ -39,22 +39,16 @@ struct RRTform {
 };
 extern const struct RRTform rr_tform_identity;
 
-struct RRcolor {
+struct RRColor {
         uint8_t red;
         uint8_t green;
         uint8_t blue;
         uint8_t alpha;
 };
-extern const struct RRcolor rr_white;
-extern const struct RRcolor rr_magenta;
-extern const struct RRcolor rr_red;
-extern const struct RRcolor rr_green;
-
-struct RRmesh {
-        struct RRVec2 *vertices;
-        unsigned int allocated;
-        unsigned int used;
-};
+extern const struct RRColor rr_white;
+extern const struct RRColor rr_magenta;
+extern const struct RRColor rr_red;
+extern const struct RRColor rr_green;
 
 struct RRArray {
         void *ptr;

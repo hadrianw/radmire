@@ -11,18 +11,18 @@
 #endif
 
 static struct RRVec2 *vertices = NULL;
-static struct RRcolor *colors = NULL;
+static struct RRColor *colors = NULL;
 static struct RRVec2 *texcoords = NULL;
 
 #define BATCH_VERTS 16384
 static struct RRVec2 batch_vertices[BATCH_VERTS];
-static struct RRcolor batch_colors[BATCH_VERTS];
+static struct RRColor batch_colors[BATCH_VERTS];
 static struct RRVec2 batch_texcoords[BATCH_VERTS];
 static unsigned int batch_count = 0;
 static GLenum batch_mode = GL_QUADS;
 
 static struct RRTform tform;
-static struct RRcolor color;
+static struct RRColor color;
 
 static GLuint active_texture = 0;
 
@@ -38,7 +38,7 @@ void rrgl_vertex_pointer(struct RRVec2 *pointer)
         vertices = pointer;
 }
 
-void rrgl_color_pointer(struct RRcolor *pointer)
+void rrgl_color_pointer(struct RRColor *pointer)
 {
         colors = pointer;
 }
@@ -143,7 +143,7 @@ void rrgl_flush()
         batch_count = 0;
 }
 
-void rrgl_color(struct RRcolor c)
+void rrgl_color(struct RRColor c)
 {
         color = c;
 }

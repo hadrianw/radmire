@@ -9,6 +9,6 @@ extern size_t rrarray_remove(struct RRArray *array, size_t index);
 
 extern size_t rrarray_remove2(struct RRArray *array, size_t index);
 
-extern struct RRArray *rrarray(size_t nmemb, size_t size);
+extern struct RRArray *rrarray_set(size_t nmemb, size_t size);
 
 extern void rrarray_free(struct RRArray *array);
