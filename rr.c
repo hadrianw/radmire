@@ -272,7 +272,7 @@ int rr_init(int argc, char **argv)
 {
 	if(!PHYSFS_init(argv[0]))
                 goto out;
-	if(!PHYSFS_setSaneConfig("hawski", "rr", "spk", 0, 0))
+	if(!PHYSFS_setSaneConfig("hawski", "rr", "zip", 0, 0))
                 goto out_physfs;
 
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
