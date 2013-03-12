@@ -39,33 +39,6 @@ static struct {
 	{ "PNG", IMG_isPNG, IMG_LoadPNG_RW },
 };
 
-extern int IMG_InitPNG();
-extern void IMG_QuitPNG();
-
-static int initialized = 0;
-
-int IMG_Init(int flags)
-{
-	int result = 0;
-
-	if (flags & IMG_INIT_PNG) {
-		if ((initialized & IMG_INIT_PNG) || IMG_InitPNG() == 0) {
-			result |= IMG_INIT_PNG;
-		}
-	}
-	initialized |= result;
-
-	return (initialized);
-}
-
-void IMG_Quit()
-{
-	if (initialized & IMG_INIT_PNG) {
-		IMG_QuitPNG();
-	}
-	initialized = 0;
-}
-
 /* Load an image from a file */
 SDL_Surface *IMG_Load(const char *file)
 {

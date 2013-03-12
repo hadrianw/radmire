@@ -1,9 +1,5 @@
 #include <stdio.h>
 #include "radmire.h"
-#include <chipmunk.h>
-#include <enet/enet.h>
-
-#include "rrphysics.h"
 
 #include "utils.h"
 
@@ -16,189 +12,14 @@ struct RRArray objects = {
         .size = sizeof(struct Object)
 };
 
-cpVect grav = { 0, -50 };
-cpSpace *space;
-cpShape *ground;
-cpBody *ballBody;
-cpShape *ballShape;
-
-void physics_init()
-{
-        space = cpSpaceNew();
-        cpSpaceSetGravity(space, grav);
-
-        ground = cpSegmentShapeNew(space->staticBody, cpv(-100, -70), cpv(100, -75), 0);
-        cpShapeSetFriction(ground, 1);
-        cpSpaceAddShape(space, ground);
-
-        cpFloat radius = 16;
-        cpFloat mass = 1;
-        cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
-
-        ballBody = cpSpaceAddBody(space, cpBodyNew(mass, moment));
-        cpBodySetPos(ballBody, cpv(0, 100));
-
-        ballShape = cpSpaceAddShape(space, cpCircleShapeNew(ballBody, radius, cpvzero));
-        cpShapeSetFriction(ballShape, 0.7);
-}
-
-void physics_deinit()
-{
-        cpShapeFree(ballShape);
-        cpBodyFree(ballBody);
-        cpShapeFree(ground);
-        cpSpaceFree(space);
-}
-
-
-
-enum BodyPart {
-	BP_LEFT_HAND,
-	BP_TORSO,
-	BP_LEFT_LEG,
-	BP_COUNT
-};
-
-struct RRVec2 sizes[BP_COUNT] = {
-	 [BP_LEFT_HAND] = { 10, 20 },
-	 [BP_TORSO] = { 40, 50 },
-	 [BP_LEFT_LEG] = { 20, 70 }
-};
-
-RRfloat masses[BP_COUNT] = {
-	 [BP_LEFT_HAND] = 1,
-	 [BP_TORSO] = 3,
-	 [BP_LEFT_LEG] = 2
-};
-
-cpVect poss[BP_COUNT] = {
-	 [BP_LEFT_HAND] = { -15, 10 },
-	 [BP_TORSO] = { 0, 0 },
-	 [BP_LEFT_LEG] = { -25, -50 }
-};
-
-struct Pin {
-	int body1;
-	int body2;
-	cpVect anchor1;
-	cpVect anchor2;
-};
-
-struct Pin jointspec[] = {
-	{BP_LEFT_HAND, BP_TORSO, {5, 10}, {-20, 25}},
-	{BP_LEFT_LEG, BP_TORSO, {10, 35}, {-20, -25}}
-};
-
-cpShape *shps[BP_COUNT] = { 0 };
-cpBody *bods[BP_COUNT] = { 0 };
-cpConstraint *joints[LENGTH(jointspec)] = { 0 };
-
-static ENetHost *client = NULL;
-static ENetPeer *peer = NULL;
-static ENetEvent ev;
-
-void cleanup()
-{
-	puts("rrclient: cleanup");
-	if(peer) {
-		enet_peer_disconnect(peer, 0);
-		while(enet_host_service(client, &ev, 3000) > 0) {
-			if(ev.type == ENET_EVENT_TYPE_RECEIVE)
-				enet_packet_destroy(ev.packet);
-			else if(ev.type == ENET_EVENT_TYPE_DISCONNECT) {
-				peer = NULL;
-				break;
-			}
-		}
-	}
-	if(peer)
-		enet_peer_reset(peer);
-	enet_host_destroy(client);
-	enet_deinitialize();
-}
-
-static void evconnect(ENetEvent *ev)
-{
-	if(!ev)
-		return;
-
-	printf("rrclient: connected: %x:%u\n", 
-	       ev->peer->address.host,
-	       ev->peer->address.port);
-	ev->peer->data = "Client information";
-}
-
-static void evreceive(ENetEvent *ev)
-{
-	if(!ev)
-		return;
-
-	printf("rrclient: packet[%zu] %x:%u/%u: %s\n",
-	       ev->packet->dataLength,
-	       ev->peer->address.host,
-	       ev->peer->address.port,
-	       ev->channelID,
-	       ev->packet->data);
-	enet_packet_destroy(ev->packet);
-}
-
-static void evdisconnect(ENetEvent *ev)
-{
-	if(!ev)
-		return;
-
-	printf("rrclient: disconnected: %x:%u\n", 
-	       ev->peer->address.host,
-	       ev->peer->address.port);
-	ev->peer->data = NULL;
-}
-
-static void (*handler[ENET_EVENT_TYPE_COUNT])(ENetEvent *) = {
-	[ENET_EVENT_TYPE_CONNECT] = evconnect,
-	[ENET_EVENT_TYPE_RECEIVE] = evreceive,
-	[ENET_EVENT_TYPE_DISCONNECT] = evdisconnect
-};
-
-
 int main(int argc, char **argv)
 {
         if(rr_init(argc, argv)) {
                 return -1;
         }
 
-	const char *servername = "localhost";
-	if(argc > 1)
-		servername = argv[1];
-	if(enet_initialize()) {
-		fputs("rrclient: couldn't init ENet\n", stderr);
-		return EXIT_FAILURE;
-	}
-	client = enet_host_create(NULL, 1, 2, 57600 / 8, 14400 / 8);
-	if(!client) {
-		fputs("rrclient: couldn't create client host\n", stderr);
-		exit(EXIT_FAILURE);
-	}
-	ENetAddress address;
-	enet_address_set_host(&address, servername);
-	address.port = 44547;
-	peer = enet_host_connect(client, &address, 2, 0);    
-	if(!peer) {
-		fprintf(stderr, "rrclient: couldn't connect to %s\n", servername);
-		exit(EXIT_FAILURE);
-	}
-	if(enet_host_service(client, &ev, 3000) > 0
-	   && ev.type == ENET_EVENT_TYPE_CONNECT) {
-		evconnect(&ev);
-	} else {
-		enet_peer_reset(peer);
-		fprintf(stderr, "rrclient: couldn't connect to %s\n", servername);
-		exit(EXIT_FAILURE);
-	}
-
-
 	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
 	struct RRTex *tex = rr_gettex(&rr_map, "ball.png");
-	struct RRTex *sqr = rr_gettex(&rr_map, "square.png");
 
         struct Object mouse = {
                 rr_tform_identity,
@@ -210,42 +31,13 @@ int main(int argc, char **argv)
                 { 32, 32 }
         };
         
-        physics_init();
-
         struct RRVec2 line[] = {
                 { -100, -70 },
                 { 100, -75 }
         };
 
-        for(int i = 0; i < BP_COUNT; i++) {
-		bods[i] = cpSpaceAddBody(space,
-				cpBodyNew(masses[i],
-					cpMomentForBox(masses[i],
-						sizes[i].x,
-						sizes[i].y)));
-		cpBodySetPos(bods[i], poss[i]);
-		shps[i] = cpSpaceAddShape(space, cpBoxShapeNew(
-					bods[i],
-					sizes[i].x, sizes[i].y));
-		cpShapeSetFriction(shps[i], 0.7);
-	}
-        for(int i = 0; i < LENGTH(jointspec); i++) {
-		struct Pin *p = &jointspec[i];
-		joints[i] = cpPinJointNew(bods[p->body1],
-				bods[p->body2],
-				p->anchor1, p->anchor2);
-		cpSpaceAddConstraint(space, joints[i]);
-		cpPinJointSetDist(joints[i], 0.1f);
-	}
-
-	cpConstraint *mouseJoint = NULL;
-	cpBody *mouseBody = cpBodyNew(INFINITY, INFINITY);
-
         while(rr_running) {
                 rr_begin_frame();
-		while(enet_host_service(client, &ev, 0) > 0)
-			if(handler[ev.type])
-				handler[ev.type](&ev);
                 if(rr_pressed_keys[SDLK_ESCAPE])
                         rr_running = false;
                 if(rr_changed_buttons[1] && rr_pressed_buttons[1]) {
@@ -256,26 +48,6 @@ int main(int argc, char **argv)
                         new.t.pos = rr_abs_screen_mouse;
                         rrarray_push(&objects, &new);
                 }
-                if(rr_changed_buttons[0]) {
-			if(rr_pressed_buttons[0]) {
-				cpShape *shape = cpSpacePointQueryFirst(space, rr2cp_vec2(rr_abs_screen_mouse),
-						0xFFFFFFFF, CP_NO_GROUP);
-				if(shape){
-					cpBody *body = shape->body;
-					mouseJoint = cpPivotJointNew2(mouseBody, body, cpvzero,
-							cpBodyWorld2Local(body, rr2cp_vec2(rr_abs_screen_mouse)));
-					mouseJoint->maxForce = 50000.0f;
-					mouseJoint->errorBias = cpfpow(1.0f - 0.15f, 60.0f);
-					cpSpaceAddConstraint(space, mouseJoint);
-				}
-			} else if(mouseJoint) {
-				cpSpaceRemoveConstraint(space, mouseJoint);
-				cpConstraintFree(mouseJoint);
-				mouseJoint = NULL;
-			}
-		}
-		cpBodySetPos(mouseBody, rr2cp_vec2(rr_abs_screen_mouse));
-
                 rr_begin_scene();
 
                 rrgl_bind_texture(tex->handle);
@@ -292,29 +64,17 @@ int main(int argc, char **argv)
                 rrgl_draw_rect(&mouse.s, 0);
 
 		rrgl_texcoord_pointer(tex->coords);
-                ball.t = cp2rr_bodytform(ballBody);
                 rrgl_load_tform(&ball.t);
                 rrgl_draw_rect(&ball.s, 0);
-
-		for(int i = 0; i < LENGTH(bods); i++) {
-			rrgl_bind_texture(sqr->handle);
-			rrgl_texcoord_pointer(sqr->coords);
-			ball.t = cp2rr_bodytform(bods[i]);
-			rrgl_load_tform(&ball.t);
-			rrgl_draw_rect(&sizes[i], 0);
-
-		}
 
                 rrgl_vertex_pointer(line);
                 rrgl_load_tform(&rr_tform_identity);
                 rrgl_draw_arrays(GL_LINES, 0, LENGTH(line));
 
                 rr_end_scene();
-                cpSpaceStep(space, 1.0/60.0);
                 rr_end_frame();
         }
 
-        physics_deinit();
         rr_freemaptex(&rr_map);
         rr_deinit();
         return 0;

@@ -68,71 +68,6 @@
 #define LIBPNG_VERSION_12
 #endif
 
-static struct {
-	int loaded;
-	void *handle;
-	png_infop (*png_create_info_struct) (png_structp png_ptr);
-	png_structp (*png_create_read_struct) (png_const_charp user_png_ver, png_voidp error_ptr, png_error_ptr error_fn, png_error_ptr warn_fn);
-	void (*png_destroy_read_struct) (png_structpp png_ptr_ptr, png_infopp info_ptr_ptr, png_infopp end_info_ptr_ptr);
-	png_uint_32 (*png_get_IHDR) (png_structp png_ptr, png_infop info_ptr, png_uint_32 *width, png_uint_32 *height, int *bit_depth, int *color_type, int *interlace_method, int *compression_method, int *filter_method);
-	png_voidp (*png_get_io_ptr) (png_structp png_ptr);
-	png_byte (*png_get_channels) (png_const_structp png_ptr, png_const_infop info_ptr);
-	png_uint_32 (*png_get_PLTE) (png_const_structp png_ptr, png_const_infop info_ptr, png_colorp *palette, int *num_palette);
-	png_uint_32 (*png_get_tRNS) (png_const_structp png_ptr, png_infop info_ptr, png_bytep *trans, int *num_trans, png_color_16p *trans_values);
-	png_uint_32 (*png_get_valid) (png_const_structp png_ptr, png_const_infop info_ptr, png_uint_32 flag);
-	void (*png_read_image) (png_structp png_ptr, png_bytepp image);
-	void (*png_read_info) (png_structp png_ptr, png_infop info_ptr);
-	void (*png_read_update_info) (png_structp png_ptr, png_infop info_ptr);
-	void (*png_set_expand) (png_structp png_ptr);
-	void (*png_set_gray_to_rgb) (png_structp png_ptr);
-	void (*png_set_packing) (png_structp png_ptr);
-	void (*png_set_read_fn) (png_structp png_ptr, png_voidp io_ptr, png_rw_ptr read_data_fn);
-	void (*png_set_strip_16) (png_structp png_ptr);
-	int (*png_sig_cmp) (png_const_bytep sig, png_size_t start, png_size_t num_to_check);
-#ifndef LIBPNG_VERSION_12
-	jmp_buf* (*png_set_longjmp_fn) (png_structp, png_longjmp_ptr, size_t);
-#endif
-} lib;
-
-int IMG_InitPNG()
-{
-	if ( lib.loaded == 0 ) {
-		lib.png_create_info_struct = png_create_info_struct;
-		lib.png_create_read_struct = png_create_read_struct;
-		lib.png_destroy_read_struct = png_destroy_read_struct;
-		lib.png_get_IHDR = png_get_IHDR;
-		lib.png_get_channels = png_get_channels;
-		lib.png_get_io_ptr = png_get_io_ptr;
-		lib.png_get_PLTE = png_get_PLTE;
-		lib.png_get_tRNS = png_get_tRNS;
-		lib.png_get_valid = png_get_valid;
-		lib.png_read_image = png_read_image;
-		lib.png_read_info = png_read_info;
-		lib.png_read_update_info = png_read_update_info;
-		lib.png_set_expand = png_set_expand;
-		lib.png_set_gray_to_rgb = png_set_gray_to_rgb;
-		lib.png_set_packing = png_set_packing;
-		lib.png_set_read_fn = png_set_read_fn;
-		lib.png_set_strip_16 = png_set_strip_16;
-		lib.png_sig_cmp = png_sig_cmp;
-#ifndef LIBPNG_VERSION_12
-		lib.png_set_longjmp_fn = png_set_longjmp_fn;
-#endif
-	}
-	++lib.loaded;
-
-	return 0;
-}
-void IMG_QuitPNG()
-{
-	if ( lib.loaded == 0 ) {
-		return;
-	}
-	if ( lib.loaded == 1 ) {
-	}
-	--lib.loaded;
-}
-
 /* See if an image is contained in a data source */
 int IMG_isPNG(SDL_RWops *src)
 {
@@ -161,7 +96,7 @@ static void png_read_data(png_structp ctx, png_bytep area, png_size_t size)
 {
 	SDL_RWops *src;
 
-	src = (SDL_RWops *)lib.png_get_io_ptr(ctx);
+	src = (SDL_RWops *)png_get_io_ptr(ctx);
 	SDL_RWread(src, area, size, 1);
 }
 SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
@@ -189,16 +124,12 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	}
 	start = SDL_RWtell(src);
 
-	if ( !IMG_Init(IMG_INIT_PNG) ) {
-		return NULL;
-	}
-
 	/* Initialize the data we will clean up when we're done */
 	error = NULL;
 	png_ptr = NULL; info_ptr = NULL; row_pointers = NULL; surface = NULL;
 
 	/* Create the PNG loading context structure */
-	png_ptr = lib.png_create_read_struct(PNG_LIBPNG_VER_STRING,
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
 					  NULL,NULL,NULL);
 	if (png_ptr == NULL){
 		error = "Couldn't allocate memory for PNG file or incompatible PNG dll";
@@ -206,7 +137,7 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	}
 
 	 /* Allocate/initialize the memory for image information.  REQUIRED. */
-	info_ptr = lib.png_create_info_struct(png_ptr);
+	info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr == NULL) {
 		error = "Couldn't create image information for PNG file";
 		goto done;
@@ -217,7 +148,7 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	 * set up your own error handlers in png_create_read_struct() earlier.
 	 */
 #ifndef LIBPNG_VERSION_12
-	if ( setjmp(*lib.png_set_longjmp_fn(png_ptr, longjmp, sizeof (jmp_buf))) )
+	if ( setjmp(*png_set_longjmp_fn(png_ptr, longjmp, sizeof (jmp_buf))) )
 #else
 	if ( setjmp(png_ptr->jmpbuf) )
 #endif
@@ -227,32 +158,32 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	}
 
 	/* Set up the input control */
-	lib.png_set_read_fn(png_ptr, src, png_read_data);
+	png_set_read_fn(png_ptr, src, png_read_data);
 
 	/* Read PNG header info */
-	lib.png_read_info(png_ptr, info_ptr);
-	lib.png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
+	png_read_info(png_ptr, info_ptr);
+	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
 			&color_type, &interlace_type, NULL, NULL);
 
 	/* tell libpng to strip 16 bit/color files down to 8 bits/color */
-	lib.png_set_strip_16(png_ptr) ;
+	png_set_strip_16(png_ptr) ;
 
 	/* Extract multiple pixels with bit depths of 1, 2, and 4 from a single
 	 * byte into separate bytes (useful for paletted and grayscale images).
 	 */
-	lib.png_set_packing(png_ptr);
+	png_set_packing(png_ptr);
 
 	/* scale greyscale values to the range 0..255 */
 	if(color_type == PNG_COLOR_TYPE_GRAY)
-		lib.png_set_expand(png_ptr);
+		png_set_expand(png_ptr);
 
 	/* For images with a single "transparent colour", set colour key;
 	   if more than one index has transparency, or if partially transparent
 	   entries exist, use full alpha channel */
-	if (lib.png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
+	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
 	        int num_trans;
 		Uint8 *trans;
-		lib.png_get_tRNS(png_ptr, info_ptr, &trans, &num_trans,
+		png_get_tRNS(png_ptr, info_ptr, &trans, &num_trans,
 			     &transv);
 		if(color_type == PNG_COLOR_TYPE_PALETTE) {
 		    /* Check if all tRNS entries are opaque except one */
@@ -269,23 +200,23 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 			ckey = t;
 		    } else {
 			/* more than one transparent index, or translucency */
-			lib.png_set_expand(png_ptr);
+			png_set_expand(png_ptr);
 		    }
 		} else
 		    ckey = 0; /* actual value will be set later */
 	}
 
 	if ( color_type == PNG_COLOR_TYPE_GRAY_ALPHA )
-		lib.png_set_gray_to_rgb(png_ptr);
+		png_set_gray_to_rgb(png_ptr);
 
-	lib.png_read_update_info(png_ptr, info_ptr);
+	png_read_update_info(png_ptr, info_ptr);
 
-	lib.png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
+	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
 			&color_type, &interlace_type, NULL, NULL);
 
 	/* Allocate the SDL surface to hold the image */
 	Rmask = Gmask = Bmask = Amask = 0 ;
-	num_channels = lib.png_get_channels(png_ptr, info_ptr);
+	num_channels = png_get_channels(png_ptr, info_ptr);
 	if ( color_type != PNG_COLOR_TYPE_PALETTE ) {
 		if ( SDL_BYTEORDER == SDL_LIL_ENDIAN ) {
 			Rmask = 0x000000FF;
@@ -329,14 +260,14 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	}
 
 	/* Read the entire image in one go */
-	lib.png_read_image(png_ptr, row_pointers);
+	png_read_image(png_ptr, row_pointers);
 
 	/* and we're done!  (png_read_end() can be omitted if no processing of
 	 * post-IDAT text/time/etc. is desired)
 	 * In some cases it can't read PNG's created by some popular programs (ACDSEE),
 	 * we do not want to process comments, so we omit png_read_end
 
-	lib.png_read_end(png_ptr, info_ptr);
+	png_read_end(png_ptr, info_ptr);
 	*/
 
 	/* Load the palette, if any */
@@ -344,7 +275,7 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 	if ( palette ) {
 	    int png_num_palette;
 	    png_colorp png_palette;
-	    lib.png_get_PLTE(png_ptr, info_ptr, &png_palette, &png_num_palette);
+	    png_get_PLTE(png_ptr, info_ptr, &png_palette, &png_num_palette);
 	    if(color_type == PNG_COLOR_TYPE_GRAY) {
 		palette->ncolors = 256;
 		for(i = 0; i < 256; i++) {
@@ -364,7 +295,7 @@ SDL_Surface *IMG_LoadPNG_RW(SDL_RWops *src)
 
 done:	/* Clean up and return */
 	if ( png_ptr ) {
-		lib.png_destroy_read_struct(&png_ptr,
+		png_destroy_read_struct(&png_ptr,
 		                        info_ptr ? &info_ptr : (png_infopp)0,
 								(png_infopp)0);
 	}

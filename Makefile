@@ -5,7 +5,7 @@ all: game-c
 RADMIRESRC = rr.c rr_array.c rr_image.c rr_types.c rrgl.c utf8offset.c utils.c
 RADMIREOBJ = ${RADMIRESRC:.c=.o}
 RADMIREDEP = radmire.h rr.h rr_array.h rr_image.h rr_math.h rr_types.h \
-             rrgl.h rrphysics.h utils.h
+             rrgl.h utils.h
 
 include contrib/SDL_image.mk
 contrib/physfsrwops.o: contrib/physfsrwops.h

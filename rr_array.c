@@ -46,12 +46,10 @@ size_t rrarray_remove2(struct RRArray *array, size_t index)
         return array->nmemb;
 }
 
-struct RRArray *rrarray(size_t nmemb, size_t size)
+void rrarray_set(struct RRArray *array, size_t nmemb, size_t size)
 {
-        struct RRArray *array = calloc(nmemb, size);
         array->size = size;
         rrarray_resize(array, nmemb);
-        return array;
 }
 
 void rrarray_free(struct RRArray *array)
