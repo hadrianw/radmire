@@ -28,12 +28,12 @@
 #define RRGL_FLOAT_TYPE GL_FLOAT
 #endif
 #define ispow2(X) (((X) & ((X) - 1)) == 0)
+#define rr_pressing_key(key) (rr_pressed_keys[key] && rr_changed_keys[key])
+#define rr_pressing_button(btn) (rr_pressed_buttons[btn] && rr_changed_buttons[btn])
+
 #define BATCH_VERTS 16384
 
-#define LOG_FATAL(fmt, ...) rr_fatal(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
 #define LOG_ERROR(fmt, ...) rr_error(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
-#define LOG_WARN(fmt, ...) rr_warn(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
-#define LOG_INFO(fmt, ...) rr_info(fmt, __VA_ARGS__)
 
 #ifdef RR_DOUBLE_FLOAT
 #define rr_sqrt sqrt
@@ -98,7 +98,14 @@ struct Object {
         struct RRVec2 s;
 };
 
+/* extern function declarations */
+extern void rr_sleep(clock_t iv);
+
 /* function declarations */
+static int texcmp(const struct RRTex **a, const struct RRTex **b);
+static int strtexcmp(const char *a, const struct RRTex **b);
+static void freetex(struct RRTex *tex);
+
 static unsigned int to_pow2(unsigned int v);
 static void rrarray_resize(struct RRArray *array, size_t nmemb);
 
@@ -114,10 +121,7 @@ static size_t rrarray_remove2(struct RRArray *array, size_t index);
 static void rrarray_set(struct RRArray *array, size_t nmemb, size_t size);
 
 static void rrarray_free(struct RRArray *array);
-void rr_fatal(const char *file, int line, const char *function, const char *format, ...);
-void rr_error(const char *file, int line, const char *function, const char *format, ...);
-void rr_warn(const char *file, int line, const char *function, const char *format, ...);
-void rr_info(const char *format, ...);
+static void rr_error(const char *file, int line, const char *function, const char *format, ...);
 static SDL_Surface *rr_loadimg(const char *path);
 static SDL_Surface *rr_formatimg(SDL_Surface *src);
 static struct RRTex *rr_loadrrtex(const char *path);
@@ -140,7 +144,6 @@ static void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *i
 
 static void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align);
 
-
 static void rrgl_init(void);
 
 static void rrgl_vertex_pointer(struct RRVec2 *pointer);
@@ -156,7 +159,6 @@ static void rrgl_flush(void);
 static void rrgl_color(struct RRColor color);
 static void rrgl_load_tform(const struct RRTform *t);
 static void rrgl_bind_texture(GLuint texture);
-extern void rr_sleep(clock_t iv);
 static void rr_set_base_diagonal(int width, int height);
 static void rr_set_base_vertical(int width, int height);
 static void rr_set_base_none(int width, int height);
@@ -175,7 +177,7 @@ static int rr_init(int argc, char **argv);
 static void rr_deinit(void);
 
 /* variables */
-struct RRArray rr_map = {
+static struct RRArray rr_map = {
 	.size = sizeof(struct RRTex*)
 };
 
@@ -278,7 +280,6 @@ static clock_t rr_time_prev;
 static clock_t rr_time_diff;
 static int ticks = 0;
 
-
 /* function implementations */
 void rrarray_resize(struct RRArray *array, size_t nmemb)
 {
@@ -335,15 +336,6 @@ void rrarray_free(struct RRArray *array)
         free(array);
 }
 
-void rr_fatal(const char *file, int line, const char *function, const char *format, ...) {
-	va_list argp;
-	fprintf(stderr, "%s: In `%s`:\n%s:%d: fatal runtime error: ", file, function, file, line);
-	va_start(argp, format);
-	vfprintf(stderr, format, argp);
-	va_end(argp);
-	fprintf(stderr, "\n");
-}
-
 void rr_error(const char *file, int line, const char *function, const char *format, ...) {
 	va_list argp;
 	fprintf(stderr, "%s: In `%s`:\n%s:%d: runtime error: ", file, function, file, line);
@@ -353,23 +345,6 @@ void rr_error(const char *file, int line, const char *function, const char *form
 	fprintf(stderr, "\n");
 }
 
-void rr_warn(const char *file, int line, const char *function, const char *format, ...) {
-	va_list argp;
-	fprintf(stderr, "%s: In `%s`:\n%s:%d: runtime warning: ", file, function, file, line);
-	va_start(argp, format);
-	vfprintf(stderr, format, argp);
-	va_end(argp);
-	fprintf(stderr, "\n");
-}
-
-void rr_info(const char *format, ...) {
-	va_list argp;
-	fprintf(stderr, " ");
-	va_start(argp, format);
-	vfprintf(stderr, format, argp);
-	va_end(argp);
-	fprintf(stderr, "\n");
-}
 unsigned int to_pow2(unsigned int v)
 {
         v--;
@@ -379,12 +354,6 @@ unsigned int to_pow2(unsigned int v)
         v |= v >> 8;
         v |= v >> 16;
         return ++v;
-}
-
-static inline struct RRVec2 rr_vec2(RRfloat x, RRfloat y)
-{
-	struct RRVec2 v = { x, y };
-	return v;
 }
 
 static inline struct RRVec2 rr_vec2_plus(struct RRVec2 v1, struct RRVec2 v2)
@@ -516,9 +485,9 @@ struct RRTex *rr_loadrrtex(const char *path)
 		orig->w / (double)pow2->w,
 		orig->h / (double)pow2->h
 	};
-	tex->coords[0] = rr_vec2(0, s.y);
+	tex->coords[0] = (struct RRVec2){0, s.y};
 	tex->coords[1] = s;
-	tex->coords[2] = rr_vec2(s.x, 0);
+	tex->coords[2] = (struct RRVec2){s.x, 0};
 	tex->coords[3] = rr_vec2_zero;
 
         tex->name = malloc((strlen(path) + 1) * sizeof(path[0]));
@@ -608,7 +577,7 @@ SDL_Surface *rr_pow2img(SDL_Surface *src)
 
 }
 
-static int texcmp(const struct RRTex **a, const struct RRTex **b)
+int texcmp(const struct RRTex **a, const struct RRTex **b)
 {
 	// FIXME: is this possible:
 	if(!a || !b)
@@ -617,7 +586,7 @@ static int texcmp(const struct RRTex **a, const struct RRTex **b)
 	return strcmp((*a)->name, (*b)->name);
 }
 
-static int strtexcmp(const char *a, const struct RRTex **b)
+int strtexcmp(const char *a, const struct RRTex **b)
 {
 	// FIXME: is this possible:
 	if(!a || !b)
@@ -626,7 +595,7 @@ static int strtexcmp(const char *a, const struct RRTex **b)
 	return strcmp(a, (*b)->name);
 }
 
-static void freetex(struct RRTex *tex)
+void freetex(struct RRTex *tex)
 {
 	if(!tex)
 		return;
@@ -649,9 +618,9 @@ struct RRTex *specline(struct RRArray *map, FILE *specfile)
            || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
            || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
 		goto free;
-	tex->coords[0] = rr_vec2(pos.x, pos.y + siz.y);
+	tex->coords[0] = (struct RRVec2){pos.x, pos.y + siz.y};
 	tex->coords[1] = rr_vec2_plus(pos, siz);
-	tex->coords[2] = rr_vec2(pos.x + siz.x, pos.y);
+	tex->coords[2] = (struct RRVec2){pos.x + siz.x, pos.y};
 	tex->coords[3] = pos;
 
 	fgets(buff, LENGTH(buff), specfile);	
@@ -897,16 +866,6 @@ void rrgl_bind_texture(GLuint texture)
 	rrgl_flush();
         glBindTexture(GL_TEXTURE_2D, texture);
         active_texture = texture;
-}
-
-static inline bool rr_pressing_key(unsigned int key)
-{
-        return rr_pressed_keys[key] && rr_changed_keys[key];
-}
-
-static inline bool rr_pressing_button(unsigned int btn)
-{
-        return rr_pressed_buttons[btn] && rr_changed_buttons[btn];
 }
 
 void rr_set_base_diagonal(int width, int height)
