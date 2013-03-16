@@ -118,8 +118,6 @@ static size_t rrarray_remove(struct RRArray *array, size_t index);
 
 static size_t rrarray_remove2(struct RRArray *array, size_t index);
 
-static void rrarray_set(struct RRArray *array, size_t nmemb, size_t size);
-
 static void rrarray_free(struct RRArray *array);
 static void rr_error(const char *file, int line, const char *function, const char *format, ...);
 static SDL_Surface *rr_loadimg(const char *path);
@@ -324,16 +322,9 @@ size_t rrarray_remove2(struct RRArray *array, size_t index)
         return array->nmemb;
 }
 
-void rrarray_set(struct RRArray *array, size_t nmemb, size_t size)
-{
-        array->size = size;
-        rrarray_resize(array, nmemb);
-}
-
 void rrarray_free(struct RRArray *array)
 {
         free(array->ptr);
-        free(array);
 }
 
 void rr_error(const char *file, int line, const char *function, const char *format, ...) {
