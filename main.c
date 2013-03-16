@@ -10,159 +10,164 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "contrib/SDL_image.h"
 #include "contrib/physfsrwops.h"
+#include "contrib/SDL_image.h"
 
 /* macros */
-#define LENGTH(X) (sizeof(X) / sizeof (X)[0])
-#define RR_DOUBLE_FLOAT
-#define RR_SDL_MAX_BUTTONS 255
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#define COLOR_SHIFT(X) (3 - (X))
-#else
-#define COLOR_SHIFT(X) (X)
-#endif
-#ifdef RR_DOUBLE_FLOAT
-#define RRGL_FLOAT_TYPE GL_DOUBLE
-#else
-#define RRGL_FLOAT_TYPE GL_FLOAT
-#endif
-#define ispow2(X) (((X) & ((X) - 1)) == 0)
-#define rr_pressing_key(key) (rr_pressed_keys[key] && rr_changed_keys[key])
-#define rr_pressing_button(btn) (rr_pressed_buttons[btn] && rr_changed_buttons[btn])
+typedef double coord;
+#define GL_COORD GL_DOUBLE
+#define sqrtc sqrt
+#define sinc sin
+#define cosc cos
+#define asinc asin
+#define acosc acos
+#define atan2c atan2
 
-#define BATCH_VERTS 16384
+/*
+typedef float coord;
+#define GL_COORD GL_FLOAT
+#define sqrtc srtf
+#define sinc sinf
+#define cosc cosf
+#define asinc asinf
+#define acosc acosf
+#define atan2c atan2f
+*/
+
+#define VEC2PLUS(V1, V2)  (Vec2){(V1).x + (V2).x, (V1).y + (V2).y}
+#define VEC2MINUS(V1, V2) (Vec2){(V1).x - (V2).x, (V1).y - (V2).y}
+#define VEC2SQLEN(V)      ((V).x * (V).x + (V).y * (V).y)
+#define VEC2LEN(V)        (sqrtc(VEC2SQLEN(V)))
+#define TFORMVEC2(T, V) \
+	(Vec2){ (T).pos.x + (T).col1.x * (V).x + (T).col2.x * (V).y, \
+	        (T).pos.y + (T).col1.y * (V).x + (T).col2.y * (V).y }
+#define TFORMRVEC2(T, V) \
+	(Vec2){ (T).col1.x * (V).x + (T).col2.x * (V).y, \
+	        (T).col1.y * (V).x + (T).col2.y * (V).y }
+#define TFORMMUL(A, B) \
+	(Tform){ { (A).col1.x * (B).col1.x + (A).col2.x * (B).col1.y, \
+	           (A).col1.y * (B).col1.x + (A).col2.y * (B).col1.y }, \
+	         { (A).col1.x * (B).col2.x + (A).col2.x * (B).col2.y, \
+	           (A).col1.y * (B).col2.x + (A).col2.y * (B).col2.y }, \
+	         { (A).col1.x * (B).pos.x + (A).col2.x * (B).pos.y + (A).pos.x, \
+	           (A).col1.y * (B).pos.x + (A).col2.y * (B).pos.y + (A).pos.y } }
+
+#define ISPOW2(X)         (((X) & ((X) - 1)) == 0)
+#define LENGTH(X)         (sizeof(X) / sizeof(X)[0])
+#define MAX(A, B)         ((A) > (B) ? (A) : (B))
+#define MIN(A, B)         ((A) < (B) ? (A) : (B))
+
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#define COLOR_SHIFT(X)    (3 - (X))
+#else
+#define COLOR_SHIFT(X)    (X)
+#endif
+
+#define PRESSING_KEY(key) (pressed_keys[key] && changed_keys[key])
+#define PRESSING_BTN(btn) (pressed_buttons[btn] && changed_buttons[btn])
 
 #define LOG_ERROR(fmt, ...) rr_error(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
 
-#ifdef RR_DOUBLE_FLOAT
-#define rr_sqrt sqrt
-#define rr_sin sin
-#define rr_cos cos
-#define rr_asin asin
-#define rr_acos acos
-#define rr_atan2 atan2
-#else
-#define rr_sqrt srtf
-#define rr_sin sinf
-#define rr_cos cosf
-#define rr_asin asinf
-#define rr_acos acosf
-#define rr_atan2 atan2f
-#endif
+enum { BATCH_VERTS = 16384 };
+enum { SDL_MAX_BUTTONS = 255 };
+enum { Diagonal, Vertical, NoneBase, Horizontal }; /* aspect base */
 
-enum RR_ASPECT_BASE {
-        RR_DIAGONAL,
-        RR_VERTICAL,
-        RR_NONE_BASE,
-        RR_HORIZONTAL
-};
+typedef struct {
+        coord x;
+        coord y;
+} Vec2;
 
-#ifdef RR_DOUBLE_FLOAT
-typedef double RRfloat;
-#else
-typedef float RRfloat;
-#endif
+typedef struct {
+        Vec2 col1;
+        Vec2 col2;
+        Vec2 pos;
+} Tform;
 
-struct RRVec2 {
-        RRfloat x;
-        RRfloat y;
-};
-
-struct RRTform {
-        struct RRVec2 col1;
-        struct RRVec2 col2;
-        struct RRVec2 pos;
-};
-
-struct RRColor {
+typedef struct {
         uint8_t red;
         uint8_t green;
         uint8_t blue;
         uint8_t alpha;
-};
-struct RRArray {
+} Color;
+
+typedef struct {
         void *ptr;
         size_t nalloc;
         size_t nmemb;
         size_t size;
-};
+} Array;
 
-struct RRTex {
+typedef struct {
         unsigned int handle;
-        struct RRVec2 coords[4];
+        Vec2 coords[4];
 	char *name;
-};
-struct Object {
-        struct RRTform t;
-        struct RRVec2 s;
-};
+} Texture;
 
-/* extern function declarations */
-extern void rr_sleep(clock_t iv);
+typedef struct {
+        Tform t;
+        Vec2 s;
+} Object;
 
 /* function declarations */
-static int texcmp(const struct RRTex **a, const struct RRTex **b);
-static int strtexcmp(const char *a, const struct RRTex **b);
-static void freetex(struct RRTex *tex);
+static void sleepc(clock_t iv);
+static uint32_t topow2(uint32_t v);
+static void rr_error(const char *file, int line, const char *function, const char *format, ...);
 
-static unsigned int to_pow2(unsigned int v);
-static void rrarray_resize(struct RRArray *array, size_t nmemb);
-
-static size_t rrarray_push(struct RRArray *array, void *src);
-
+static void rrarray_resize(Array *array, size_t nmemb);
+static size_t rrarray_push(Array *array, void *src);
 // removes element at index
 // moves last element to removed element
 // returns index of moved element or/and size of resized array
-static size_t rrarray_remove(struct RRArray *array, size_t index);
+static size_t rrarray_remove(Array *array, size_t index);
+static size_t rrarray_remove2(Array *array, size_t index);
+static void rrarray_free(Array *array);
 
-static size_t rrarray_remove2(struct RRArray *array, size_t index);
+static SDL_Surface *loadimg(const char *path);
+static SDL_Surface *formatimg(SDL_Surface *src);
+static Texture *rr_loadrrtex(const char *path);
+static unsigned int loadtex(const char *path);
+static unsigned int maketex(SDL_Surface *surface);
+static SDL_Surface *pow2img(SDL_Surface *src);
 
-static void rrarray_free(struct RRArray *array);
-static void rr_error(const char *file, int line, const char *function, const char *format, ...);
-static SDL_Surface *rr_loadimg(const char *path);
-static SDL_Surface *rr_formatimg(SDL_Surface *src);
-static struct RRTex *rr_loadrrtex(const char *path);
-static unsigned int rr_loadtex(const char *path);
-static unsigned int rr_maketex(SDL_Surface *surface);
-static SDL_Surface *rr_pow2img(SDL_Surface *src);
+static void freetex(Texture *tex);
+static int texcmp(const Texture **a, const Texture **b);
+static int strtexcmp(const char *a, const Texture **b);
+static int loadatlas(Array *map, const char *spc, const char *img);
+static Texture *gettex(Array *map, const char *name);
+static Texture *findtex(Array *map, const char *name);
+static Texture *rr_findntex(Array *map, size_t nel, const char *name);
+static void rr_freemaptex(Array *map);
 
-static int rr_addatlas(struct RRArray *map, const char *spc, const char *img);
-static struct RRTex *rr_gettex(struct RRArray *map, const char *name);
-static struct RRTex *rr_findtex(struct RRArray *map, const char *name);
-static struct RRTex *rr_findntex(struct RRArray *map, size_t nel, const char *name);
-static void rr_freemaptex(struct RRArray *map);
 static void rrgl_init(void);
-
-static void rrgl_vertex_pointer(struct RRVec2 *pointer);
-static void rrgl_color_pointer(struct RRColor *pointer);
-static void rrgl_texcoord_pointer(struct RRVec2 *pointer);
+static void rrgl_vertex_pointer(Vec2 *pointer);
+static void rrgl_color_pointer(Color *pointer);
+static void rrgl_texcoord_pointer(Vec2 *pointer);
 static void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count);
 static void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
 
-static void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align);
+static void rrgl_draw_rect(const Vec2 *size, const Vec2 *align);
 
 static void rrgl_init(void);
 
-static void rrgl_vertex_pointer(struct RRVec2 *pointer);
-static void rrgl_color_pointer(struct RRColor *pointer);
-static void rrgl_texcoord_pointer(struct RRVec2 *pointer);
+static void rrgl_vertex_pointer(Vec2 *pointer);
+static void rrgl_color_pointer(Color *pointer);
+static void rrgl_texcoord_pointer(Vec2 *pointer);
 static void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count);
 static void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
 
-static void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align);
+static void rrgl_draw_rect(const Vec2 *size, const Vec2 *align);
 
 static void rrgl_flush(void);
 
-static void rrgl_color(struct RRColor color);
-static void rrgl_load_tform(const struct RRTform *t);
+static void rrgl_color(Color color);
+static void rrgl_load_tform(const Tform *t);
 static void rrgl_bind_texture(GLuint texture);
 static void rr_set_base_diagonal(int width, int height);
 static void rr_set_base_vertical(int width, int height);
 static void rr_set_base_none(int width, int height);
 static void rr_set_base_horizontal(int width, int height);
 
-static void rr_set_screen_tform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top);
+static void rr_set_screen_tform(int width, int height, coord left, coord right, coord bottom, coord top);
 static void rr_resize(int width, int height, int base);
 static int rr_fullscreen_mode(int base);
 static int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
@@ -175,54 +180,54 @@ static int rr_init(int argc, char **argv);
 static void rr_deinit(void);
 
 /* variables */
-static struct RRArray rr_map = {
-	.size = sizeof(struct RRTex*)
+static Array rr_map = {
+	.size = sizeof(Texture*)
 };
 
-static const struct RRVec2 rr_vec2_zero = {0.0f, 0.0f};
+static const Vec2 vec2zero = {0.0f, 0.0f};
 
-static const struct RRVec2 rr_vec2_top_left      = {0.0f, 0.0f};
-static const struct RRVec2 rr_vec2_top_center    = {0.5f, 0.0f};
-static const struct RRVec2 rr_vec2_top_right     = {1.0f, 0.0f};
+static const Vec2 vec2top_left      = {0.0f, 0.0f};
+static const Vec2 vec2top_center    = {0.5f, 0.0f};
+static const Vec2 vec2top_right     = {1.0f, 0.0f};
 
-static const struct RRVec2 rr_vec2_middle_left   = {0.0f, 0.5f};
-static const struct RRVec2 rr_vec2_center        = {0.5f, 0.5f};
-static const struct RRVec2 rr_vec2_middle_right  = {1.0f, 0.5f};
+static const Vec2 vec2middle_left   = {0.0f, 0.5f};
+static const Vec2 vec2center        = {0.5f, 0.5f};
+static const Vec2 vec2middle_right  = {1.0f, 0.5f};
 
-static const struct RRVec2 rr_vec2_bottom_left   = {0.0f, 1.0f};
-static const struct RRVec2 rr_vec2_bottom_center = {0.5f, 1.0f};
-static const struct RRVec2 rr_vec2_bottom_right  = {1.0f, 1.0f};
+static const Vec2 vec2bottom_left   = {0.0f, 1.0f};
+static const Vec2 vec2bottom_center = {0.5f, 1.0f};
+static const Vec2 vec2bottom_right  = {1.0f, 1.0f};
 
-static const struct RRTform rr_tform_identity = {
+static const Tform rr_tform_identity = {
         {1.0f, 0.0f},
         {0.0f, 1.0f},
         {0.0f, 0.0f}
 };
 
-static const struct RRColor rr_white = {0xFF, 0xFF, 0xFF, 0xFF};
-static const struct RRColor rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
-static const struct RRColor rr_red = {0xFF, 0x00, 0x00, 0xFF};
-static const struct RRColor rr_green = {0x00, 0xFF, 0x00, 0xFF};
+static const Color rr_white = {0xFF, 0xFF, 0xFF, 0xFF};
+static const Color rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
+static const Color rr_red = {0xFF, 0x00, 0x00, 0xFF};
+static const Color rr_green = {0x00, 0xFF, 0x00, 0xFF};
 
-static const struct RRVec2 rr_texcoords_identity[4] = {
+static const Vec2 rr_texcoords_identity[4] = {
 	{0.0f, 1.0f},
 	{1.0f, 1.0f},
 	{1.0f, 0.0f},
 	{0.0f, 0.0f}
 };
 
-static struct RRVec2 *vertices = NULL;
-static struct RRColor *colors = NULL;
-static struct RRVec2 *texcoords = NULL;
+static Vec2 *vertices = NULL;
+static Color *colors = NULL;
+static Vec2 *texcoords = NULL;
 
-static struct RRVec2 batch_vertices[BATCH_VERTS];
-static struct RRColor batch_colors[BATCH_VERTS];
-static struct RRVec2 batch_texcoords[BATCH_VERTS];
+static Vec2 batch_vertices[BATCH_VERTS];
+static Color batch_colors[BATCH_VERTS];
+static Vec2 batch_texcoords[BATCH_VERTS];
 static unsigned int batch_count = 0;
 static GLenum batch_mode = GL_QUADS;
 
-static struct RRTform tform;
-static struct RRColor color;
+static Tform tform;
+static Color color;
 
 static GLuint active_texture = 0;
 
@@ -234,44 +239,44 @@ static SDL_PixelFormat rr_format = {
 };
 static bool rr_fullscreen = false;
 
-static RRfloat rr_top;
-static RRfloat rr_left;
-static RRfloat rr_bottom;
-static RRfloat rr_right;
+static coord rr_top;
+static coord rr_left;
+static coord rr_bottom;
+static coord rr_right;
 
 static int rr_base;
 
-static struct RRTform rr_screen_tform;
-static RRfloat rr_width_factor = 0.0f;
-static RRfloat rr_height_factor = 0.0f;
+static Tform rr_screen_tform;
+static coord rr_width_factor = 0.0f;
+static coord rr_height_factor = 0.0f;
 
-static bool rr_pressed_keys[SDLK_LAST] = { false };
-static bool rr_changed_keys[SDLK_LAST] = { false };
-static bool rr_pressed_buttons[RR_SDL_MAX_BUTTONS] = { false };
-static bool rr_changed_buttons[RR_SDL_MAX_BUTTONS] = { false };
-static struct RRVec2 rr_abs_mouse = {0.0f, 0.0f};
-static struct RRVec2 rr_rel_mouse = {0.0f, 0.0f};
-static struct RRVec2 rr_abs_screen_mouse = {0.0f, 0.0f};
-static struct RRVec2 rr_rel_screen_mouse = {0.0f, 0.0f};
+static bool pressed_keys[SDLK_LAST] = { false };
+static bool changed_keys[SDLK_LAST] = { false };
+static bool pressed_buttons[SDL_MAX_BUTTONS] = { false };
+static bool changed_buttons[SDL_MAX_BUTTONS] = { false };
+static Vec2 rr_abs_mouse = {0.0f, 0.0f};
+static Vec2 rr_rel_mouse = {0.0f, 0.0f};
+static Vec2 rr_abs_screen_mouse = {0.0f, 0.0f};
+static Vec2 rr_rel_screen_mouse = {0.0f, 0.0f};
 static bool rr_mouse_moved = false;
 static bool rr_key_pressed = false;
 static bool rr_button_pressed = false;
 static bool rr_key_released = false;
 static bool rr_button_released = false;
 
-static bool rr_running = false;
+static bool running = false;
 static SDL_Event rr_sdl_event;
-static struct RRArray objects = {
-        .size = sizeof(struct Object)
+static Array objects = {
+        .size = sizeof(Object)
 };
 static void (*set_base_handler[])(int, int) = {
-	[RR_DIAGONAL] = rr_set_base_diagonal,
-        [RR_VERTICAL] = rr_set_base_vertical,
-        [RR_NONE_BASE] = rr_set_base_none,
-        [RR_HORIZONTAL] = rr_set_base_horizontal
+	[Diagonal] = rr_set_base_diagonal,
+        [Vertical] = rr_set_base_vertical,
+        [NoneBase] = rr_set_base_none,
+        [Horizontal] = rr_set_base_horizontal
 };
 static unsigned int rr_fps = 60;
-static RRfloat rr_step = 0;
+static coord rr_step = 0;
 static clock_t rr_time_step;
 static clock_t rr_time;
 static clock_t rr_time_prev;
@@ -279,9 +284,14 @@ static clock_t rr_time_diff;
 static int ticks = 0;
 
 /* function implementations */
-void rrarray_resize(struct RRArray *array, size_t nmemb)
+void sleepc(clock_t iv)
 {
-        size_t nalloc = to_pow2(nmemb);
+	SDL_Delay(iv * 1000 / CLOCKS_PER_SEC);
+}
+
+void rrarray_resize(Array *array, size_t nmemb)
+{
+        size_t nalloc = topow2(nmemb);
         if(nmemb < array->nmemb && array->nalloc > nalloc * 2)
                 nalloc *= 2;
         array->ptr = realloc(array->ptr, nalloc * array->size);
@@ -289,7 +299,7 @@ void rrarray_resize(struct RRArray *array, size_t nmemb)
         array->nmemb = nmemb;
 }
 
-size_t rrarray_push(struct RRArray *array, void *src)
+size_t rrarray_push(Array *array, void *src)
 {
         size_t last = array->nmemb * array->size;
         rrarray_resize(array, array->nmemb + 1);
@@ -300,7 +310,7 @@ size_t rrarray_push(struct RRArray *array, void *src)
 // removes element at index
 // moves last element to removed element
 // returns index of moved element or/and size of resized array
-size_t rrarray_remove(struct RRArray *array, size_t index)
+size_t rrarray_remove(Array *array, size_t index)
 {
         size_t last = array->nmemb - 1;
         if(last != index) {
@@ -313,7 +323,7 @@ size_t rrarray_remove(struct RRArray *array, size_t index)
         return array->nmemb;
 }
 
-size_t rrarray_remove2(struct RRArray *array, size_t index)
+size_t rrarray_remove2(Array *array, size_t index)
 {
         char *ptr = array->ptr;
         ptr += index * array->size;
@@ -322,7 +332,7 @@ size_t rrarray_remove2(struct RRArray *array, size_t index)
         return array->nmemb;
 }
 
-void rrarray_free(struct RRArray *array)
+void rrarray_free(Array *array)
 {
         free(array->ptr);
 }
@@ -336,7 +346,7 @@ void rr_error(const char *file, int line, const char *function, const char *form
 	fprintf(stderr, "\n");
 }
 
-unsigned int to_pow2(unsigned int v)
+uint32_t topow2(uint32_t v)
 {
         v--;
         v |= v >> 1;
@@ -347,71 +357,21 @@ unsigned int to_pow2(unsigned int v)
         return ++v;
 }
 
-static inline struct RRVec2 rr_vec2_plus(struct RRVec2 v1, struct RRVec2 v2)
-{
-        struct RRVec2 tmp;
-        tmp.x = v1.x + v2.x;
-        tmp.y = v1.y + v2.y;
-        return tmp;
-}
-
-static inline struct RRVec2 rr_vec2_minus(struct RRVec2 v1, struct RRVec2 v2)
-{
-        struct RRVec2 tmp;
-        tmp.x = v1.x - v2.x;
-        tmp.y = v1.y - v2.y;
-        return tmp;
-}
-
-static inline RRfloat rr_vec2_sqlen(struct RRVec2 v)
-{
-        return v.x*v.x + v.y*v.y;
-}
-
-static inline RRfloat rr_vec2_len(struct RRVec2 v)
-{
-        return rr_sqrt(rr_vec2_sqlen(v));
-}
-
-static inline struct RRVec2 rr_tform_vect(const struct RRTform t,
-                const struct RRVec2 v)
+static void rr_tform_set_angle(Tform *t,
+                coord angle)
 {       
-        struct RRVec2 res;
-	res.x = t.pos.x+t.col1.x*v.x+t.col2.x*v.y;
-	res.y = t.pos.y+t.col1.y*v.x+t.col2.y*v.y;
-
-	return res;
-}
-
-static inline struct RRTform rr_tform_mul(const struct RRTform a,
-                const struct RRTform b)
-{       
-        struct RRTform res;
-	res.col1.x = a.col1.x * b.col1.x + a.col2.x * b.col1.y;
-	res.col2.x = a.col1.x * b.col2.x + a.col2.x * b.col2.y;
-	res.pos.x = a.col1.x * b.pos.x + a.col2.x * b.pos.y + a.pos.x;
-
-	res.col1.y = a.col1.y * b.col1.x + a.col2.y * b.col1.y;
-	res.col2.y = a.col1.y * b.col2.x + a.col2.y * b.col2.y;
-	res.pos.y = a.col1.y * b.pos.x + a.col2.y * b.pos.y + a.pos.y;
-	return res;
-}
-
-static inline void rr_tform_set_angle(struct RRTform *t,
-                RRfloat angle)
-{       
-        RRfloat c = rr_cos(angle);
-        RRfloat s = rr_sin(angle);
+        coord c = cosc(angle);
+        coord s = sinc(angle);
 	t->col1.x = c; t->col2.x = -s;
 	t->col1.y = s; t->col2.y = c;
 }
 
-static inline struct RRTform rr_tform_from_vec2(const struct RRVec2 v)
+static Tform rr_tform_from_vec2(const Vec2 v)
 {       
-        struct RRTform res;
-        RRfloat len = rr_vec2_len(v);
-        RRfloat c = v.x / len;
-        RRfloat s = v.y / len;
+        Tform res;
+        coord len = VEC2LEN(v);
+        coord c = v.x / len;
+        coord s = v.y / len;
 
         res.col1.x = c; res.col2.x = -s; res.pos.x = len;
         res.col1.y = s; res.col2.y = c; res.pos.y = 0;
@@ -419,16 +379,7 @@ static inline struct RRTform rr_tform_from_vec2(const struct RRVec2 v)
 	return res;
 }
 
-static inline struct RRVec2 rr_tformR_vect(const struct RRTform t,
-                const struct RRVec2 v)
-{       
-        struct RRVec2 res;
-	res.x = t.col1.x*v.x+t.col2.x*v.y;
-	res.y = t.col1.y*v.x+t.col2.y*v.y;
-
-	return res;
-}
-SDL_Surface *rr_loadimg(const char *path)
+SDL_Surface *loadimg(const char *path)
 {
         SDL_RWops *rw;
 
@@ -438,32 +389,32 @@ SDL_Surface *rr_loadimg(const char *path)
         return IMG_Load_RW(rw, 1);
 }
 
-SDL_Surface *rr_formatimg(SDL_Surface *src)
+SDL_Surface *formatimg(SDL_Surface *src)
 {
         return SDL_ConvertSurface(src, &rr_format, SDL_SWSURFACE);
 }
 
-struct RRTex *rr_loadrrtex(const char *path)
+Texture *rr_loadrrtex(const char *path)
 {
-	struct RRTex *tex = NULL;
+	Texture *tex = NULL;
         SDL_Surface *orig = NULL;
 	SDL_Surface *pow2 = NULL;
         SDL_Surface *conv = NULL;
         unsigned int handle = 0;
 
-        orig = rr_loadimg(path);
+        orig = loadimg(path);
         if(!orig)
                 goto out_orig;
 
-	pow2 = rr_pow2img(orig);
+	pow2 = pow2img(orig);
 	if(!pow2)
 		goto out_pow2;
 
-        conv = rr_formatimg(pow2);
+        conv = formatimg(pow2);
         if(!conv)
                 goto out_conv;
 
-        handle = rr_maketex(conv);
+        handle = maketex(conv);
         SDL_FreeSurface(conv);
 	if(!handle)
 		goto out_conv;
@@ -472,14 +423,14 @@ struct RRTex *rr_loadrrtex(const char *path)
 
         tex->handle = handle;
 
-	struct RRVec2 s = {
+	Vec2 s = {
 		orig->w / (double)pow2->w,
 		orig->h / (double)pow2->h
 	};
-	tex->coords[0] = (struct RRVec2){0, s.y};
+	tex->coords[0] = (Vec2){0, s.y};
 	tex->coords[1] = s;
-	tex->coords[2] = (struct RRVec2){s.x, 0};
-	tex->coords[3] = rr_vec2_zero;
+	tex->coords[2] = (Vec2){s.x, 0};
+	tex->coords[3] = vec2zero;
 
         tex->name = malloc((strlen(path) + 1) * sizeof(path[0]));
         strcpy(tex->name, path);
@@ -493,21 +444,21 @@ out_orig:
         return tex;
 }
 
-unsigned int rr_loadtex(const char *path)
+unsigned int loadtex(const char *path)
 {
         unsigned int handle = 0;
         SDL_Surface *orig = NULL;
         SDL_Surface *conv = NULL;
 
-        orig = rr_loadimg(path);
+        orig = loadimg(path);
         if(!orig)
                 goto out_orig;
 
-        conv = rr_formatimg(orig);
+        conv = formatimg(orig);
         if(!conv)
                 goto out_conv;
 
-        handle = rr_maketex(conv);
+        handle = maketex(conv);
 
         SDL_FreeSurface(conv);
 out_conv:
@@ -516,7 +467,7 @@ out_orig:
         return handle;
 }
 
-unsigned int rr_maketex(SDL_Surface *surface)
+unsigned int maketex(SDL_Surface *surface)
 {
         GLenum type;
         unsigned int handle;
@@ -547,14 +498,14 @@ unsigned int rr_maketex(SDL_Surface *surface)
         return handle;
 }
 
-SDL_Surface *rr_pow2img(SDL_Surface *src)
+SDL_Surface *pow2img(SDL_Surface *src)
 {
-        if(ispow2(src->w) && ispow2(src->h))
+        if(ISPOW2(src->w) && ISPOW2(src->h))
                 return src;
         SDL_SetAlpha(src, 0, SDL_ALPHA_OPAQUE);
         SDL_Surface *dst = NULL;
         dst = SDL_CreateRGBSurface(src->flags,
-                                   to_pow2(src->w), to_pow2(src->h),
+                                   topow2(src->w), topow2(src->h),
                                    src->format->BitsPerPixel,
                                    src->format->Rmask,
                                    src->format->Gmask,
@@ -568,7 +519,7 @@ SDL_Surface *rr_pow2img(SDL_Surface *src)
 
 }
 
-int texcmp(const struct RRTex **a, const struct RRTex **b)
+int texcmp(const Texture **a, const Texture **b)
 {
 	// FIXME: is this possible:
 	if(!a || !b)
@@ -577,7 +528,7 @@ int texcmp(const struct RRTex **a, const struct RRTex **b)
 	return strcmp((*a)->name, (*b)->name);
 }
 
-int strtexcmp(const char *a, const struct RRTex **b)
+int strtexcmp(const char *a, const Texture **b)
 {
 	// FIXME: is this possible:
 	if(!a || !b)
@@ -586,7 +537,7 @@ int strtexcmp(const char *a, const struct RRTex **b)
 	return strcmp(a, (*b)->name);
 }
 
-void freetex(struct RRTex *tex)
+void freetex(Texture *tex)
 {
 	if(!tex)
 		return;
@@ -594,24 +545,24 @@ void freetex(struct RRTex *tex)
 	free(tex);
 }
 
-struct RRTex *specline(struct RRArray *map, FILE *specfile)
+Texture *specline(Array *map, FILE *specfile)
 {
 	static char buff[BUFSIZ];
-	struct RRTex *tex;
+	Texture *tex;
 	tex = calloc(1, sizeof(tex[0]));
 
 	int nread = 0;
-	struct RRVec2 pos;
-	struct RRVec2 siz;
+	Vec2 pos;
+	Vec2 siz;
 	nread = fscanf(specfile, "%lf %lf %lf %lf ",
 	               &pos.x, &pos.y, &siz.x, &siz.y);
 	if(nread != 4
            || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
            || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
 		goto free;
-	tex->coords[0] = (struct RRVec2){pos.x, pos.y + siz.y};
-	tex->coords[1] = rr_vec2_plus(pos, siz);
-	tex->coords[2] = (struct RRVec2){pos.x + siz.x, pos.y};
+	tex->coords[0] = (Vec2){pos.x, pos.y + siz.y};
+	tex->coords[1] = VEC2PLUS(pos, siz);
+	tex->coords[2] = (Vec2){pos.x + siz.x, pos.y};
 	tex->coords[3] = pos;
 
 	fgets(buff, LENGTH(buff), specfile);	
@@ -630,7 +581,7 @@ free:
         return NULL;
 }
 
-int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
+int loadatlas(Array *map, const char *spec, const char *image)
 {
 	if(!map || !spec || !image)
 		return 0;
@@ -639,18 +590,18 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 	if(!spec)
 		return 0;
 
-	unsigned int atlas = rr_loadtex(image);
+	unsigned int atlas = loadtex(image);
 
 	size_t nprev = map->nmemb;
-	struct RRTex *tex;
-	struct RRTex *dup;
+	Texture *tex;
+	Texture *dup;
         int ntex;
         for(ntex = 0; (tex = specline(map, specfile)); ) {
 		tex->handle = atlas;
 		dup = rr_findntex(map, nprev, tex->name);
 		// Ignore this line on duplicate, or we could:
 		// memset(dup, tex,
-		//        sizeof(struct RRTex) - sizeof(tex->name));
+		//        sizeof(Texture) - sizeof(tex->name));
 		// freetex(tex);
 		// tex = dup;
 		if(dup) {
@@ -675,11 +626,11 @@ int rr_addatlas(struct RRArray *map, const char *spec, const char *image)
 	return ntex;
 }
 
-struct RRTex *rr_gettex(struct RRArray *map, const char *name)
+Texture *gettex(Array *map, const char *name)
 {
 	if(!map || !name)
 		return NULL;
-	struct RRTex * tex = rr_findtex(map, name);
+	Texture * tex = findtex(map, name);
         if(tex)
                 return tex;
 
@@ -691,28 +642,28 @@ struct RRTex *rr_gettex(struct RRArray *map, const char *name)
         return tex;
 }
 
-struct RRTex *rr_findtex(struct RRArray *map, const char *name)
+Texture *findtex(Array *map, const char *name)
 {
 	if(!map || !name)
 		return NULL;
 	return rr_findntex(map, map->nmemb, name);
 }
 
-struct RRTex *rr_findntex(struct RRArray *map, size_t nel, const char *name)
+Texture *rr_findntex(Array *map, size_t nel, const char *name)
 {
 	if(!map || !name)
 		return NULL;
 
-	struct RRTex **match;
+	Texture **match;
 	match = bsearch(name, map->ptr, nel, map->size,
 	                (int(*)(const void*, const void*))strtexcmp);
 
 	return match ? *match : NULL;
 }
 
-void rr_freemaptex(struct RRArray *map)
+void rr_freemaptex(Array *map)
 {
-        struct RRTex **tex = map->ptr;
+        Texture **tex = map->ptr;
         for(size_t i = 0; i < map->nmemb; i++) {
                 glDeleteTextures(1, &tex[i]->handle);
                 freetex(tex[i]);
@@ -729,17 +680,17 @@ void rrgl_init(void)
         glEnableClientState(GL_COLOR_ARRAY);
 }
 
-void rrgl_vertex_pointer(struct RRVec2 *pointer)
+void rrgl_vertex_pointer(Vec2 *pointer)
 {
         vertices = pointer;
 }
 
-void rrgl_color_pointer(struct RRColor *pointer)
+void rrgl_color_pointer(Color *pointer)
 {
         colors = pointer;
 }
 
-void rrgl_texcoord_pointer(struct RRVec2 *pointer)
+void rrgl_texcoord_pointer(Vec2 *pointer)
 {
         texcoords = pointer;
 }
@@ -757,7 +708,7 @@ void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count)
         }
         for(i = 0; i < count; ++i)
                 batch_vertices[batch_count + i]
-                        = rr_tform_vect(tform, vertices[first + i]);
+                        = TFORMVEC2(tform, vertices[first + i]);
         if(colors)
                 memcpy(batch_colors + batch_count, colors + first,
                                 sizeof(*colors) * count);
@@ -784,7 +735,7 @@ void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
         }
         for(i = 0; i < count; ++i)
                 batch_vertices[batch_count + i]
-                        = rr_tform_vect(tform, vertices[indices[i]]);
+                        = TFORMVEC2(tform, vertices[indices[i]]);
         if(colors)
                 for(i = 0; i < count; ++i)
                         batch_colors[batch_count + i]
@@ -800,18 +751,18 @@ void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
         batch_count += count;
 }
 
-void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align)
+void rrgl_draw_rect(const Vec2 *size, const Vec2 *align)
 {
         if(!size)
                 return;
 
         if(!align)
-                align = &rr_vec2_center;
+                align = &vec2center;
         /* 3 ,--, 2
              | /|
              |/ |
            0 '--' 1 */
-        struct RRVec2 vs[4] = {
+        Vec2 vs[4] = {
                 {size->x *       - align->x , size->y * (align->y - 1.0f)},
                 {size->x * (1.0f - align->x), size->y * (align->y - 1.0f)},
                 {size->x * (1.0f - align->x), size->y *  align->y        },
@@ -827,8 +778,8 @@ void rrgl_draw_rect(const struct RRVec2 *size, const struct RRVec2 *align)
 
 void rrgl_flush()
 {
-        glVertexPointer(2, RRGL_FLOAT_TYPE, 0, batch_vertices);
-        glTexCoordPointer(2, RRGL_FLOAT_TYPE, 0, batch_texcoords);
+        glVertexPointer(2, GL_COORD, 0, batch_vertices);
+        glTexCoordPointer(2, GL_COORD, 0, batch_texcoords);
         glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch_colors);
 
         if(batch_mode < GL_TRIANGLES)
@@ -839,12 +790,12 @@ void rrgl_flush()
         batch_count = 0;
 }
 
-void rrgl_color(struct RRColor c)
+void rrgl_color(Color c)
 {
         color = c;
 }
 
-void rrgl_load_tform(const struct RRTform *t)
+void rrgl_load_tform(const Tform *t)
 {
         tform = *t;
 }
@@ -893,7 +844,7 @@ void rr_set_base_horizontal(int width, int height)
         rr_bottom = -rr_top;
 }
 
-void rr_set_screen_tform(int width, int height, RRfloat left, RRfloat right, RRfloat bottom, RRfloat top)
+void rr_set_screen_tform(int width, int height, coord left, coord right, coord bottom, coord top)
 {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -972,10 +923,10 @@ int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
 void rr_begin_frame(void)
 {
         for(unsigned int i=0; i < SDLK_LAST; ++i)
-                rr_changed_keys[i] = false;
-        for(unsigned int i=0; i < RR_SDL_MAX_BUTTONS; ++i)
-                rr_changed_buttons[i] = false;
-        rr_rel_mouse = rr_vec2_zero;
+                changed_keys[i] = false;
+        for(unsigned int i=0; i < SDL_MAX_BUTTONS; ++i)
+                changed_buttons[i] = false;
+        rr_rel_mouse = vec2zero;
         rr_mouse_moved = false;
         rr_key_pressed = false;
         rr_button_pressed = false;
@@ -984,7 +935,7 @@ void rr_begin_frame(void)
         while(SDL_PollEvent(&rr_sdl_event)) {
                 switch(rr_sdl_event.type) {
                 case SDL_QUIT:
-                        rr_running = false;
+                        running = false;
                         return;
                 case SDL_MOUSEMOTION:
                         rr_rel_mouse.x += rr_sdl_event.motion.xrel;
@@ -994,23 +945,23 @@ void rr_begin_frame(void)
                         rr_mouse_moved = true;
                         break;
                 case SDL_MOUSEBUTTONDOWN:
-                        rr_pressed_buttons[rr_sdl_event.button.button-1] = true;
-                        rr_changed_buttons[rr_sdl_event.button.button-1] = true;
+                        pressed_buttons[rr_sdl_event.button.button-1] = true;
+                        changed_buttons[rr_sdl_event.button.button-1] = true;
                         rr_button_pressed = true;
                         break;
                 case SDL_MOUSEBUTTONUP:
-                        rr_pressed_buttons[rr_sdl_event.button.button-1] = false;
-                        rr_changed_buttons[rr_sdl_event.button.button-1] = true;
+                        pressed_buttons[rr_sdl_event.button.button-1] = false;
+                        changed_buttons[rr_sdl_event.button.button-1] = true;
                         rr_button_released = true;
                         break;
                 case SDL_KEYDOWN:
-                        rr_pressed_keys[rr_sdl_event.key.keysym.sym] = true;
-                        rr_changed_keys[rr_sdl_event.key.keysym.sym] = true;
+                        pressed_keys[rr_sdl_event.key.keysym.sym] = true;
+                        changed_keys[rr_sdl_event.key.keysym.sym] = true;
                         rr_key_pressed = true;
                         break;
                 case SDL_KEYUP:
-                        rr_pressed_keys[rr_sdl_event.key.keysym.sym] = false;
-                        rr_changed_keys[rr_sdl_event.key.keysym.sym] = true;
+                        pressed_keys[rr_sdl_event.key.keysym.sym] = false;
+                        changed_keys[rr_sdl_event.key.keysym.sym] = true;
                         rr_key_released = true;
                         break;
                 case SDL_VIDEORESIZE:
@@ -1020,9 +971,9 @@ void rr_begin_frame(void)
                         break;
                 }
         }
-        rr_abs_screen_mouse = rr_tform_vect(rr_screen_tform,
+        rr_abs_screen_mouse = TFORMVEC2(rr_screen_tform,
                         rr_abs_mouse); 
-        rr_rel_screen_mouse = rr_tformR_vect(rr_screen_tform,
+        rr_rel_screen_mouse = TFORMRVEC2(rr_screen_tform,
                         rr_rel_mouse); 
 }
 
@@ -1047,7 +998,7 @@ void rr_end_frame(void)
 
         if(rr_time_diff < rr_time_step) {
                 rr_time_diff = rr_time_step - rr_time_diff;
-		rr_sleep(rr_time_diff);
+		sleepc(rr_time_diff);
                 ticks++;
                 if(ticks == rr_fps) {
                         printf("%f\n", rr_time_diff / (double)CLOCKS_PER_SEC);
@@ -1067,8 +1018,8 @@ int rr_init(int argc, char **argv)
 
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
                 goto out_physfs;
-        if(rr_set_video_mode(1024, 768, 32, false, RR_DIAGONAL))
-        //if(rr_fullscreen_mode(RR_DIAGONAL))
+        if(rr_set_video_mode(1024, 768, 32, false, Diagonal))
+        //if(rr_fullscreen_mode(Diagonal))
                 goto out_sdl;
 
         SDL_WM_SetCaption("Radmire", NULL);
@@ -1089,7 +1040,7 @@ int rr_init(int argc, char **argv)
         rr_time_step = CLOCKS_PER_SEC / rr_fps;
         rr_time_prev = clock();
 
-        rr_running = true;
+        running = true;
         return 0;
 
 out_sdl:
@@ -1112,30 +1063,30 @@ int main(int argc, char **argv)
                 return -1;
         }
 
-	rr_addatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	struct RRTex *tex = rr_gettex(&rr_map, "ball.png");
+	loadatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
+	Texture *tex = gettex(&rr_map, "ball.png");
 
-        struct Object mouse = {
+        Object mouse = {
                 rr_tform_identity,
                 { 12, 12 }
         };
         
-        struct Object ball = {
+        Object ball = {
                 rr_tform_identity,
                 { 32, 32 }
         };
         
-        struct RRVec2 line[] = {
+        Vec2 line[] = {
                 { -100, -70 },
                 { 100, -75 }
         };
 
-        while(rr_running) {
+        while(running) {
                 rr_begin_frame();
-                if(rr_pressed_keys[SDLK_ESCAPE])
-                        rr_running = false;
-                if(rr_changed_buttons[1] && rr_pressed_buttons[1]) {
-                        struct Object new = {
+                if(pressed_keys[SDLK_ESCAPE])
+                        running = false;
+                if(changed_buttons[1] && pressed_buttons[1]) {
+                        Object new = {
                                 rr_tform_identity,
                                 {50, 50}
                         };
@@ -1146,7 +1097,7 @@ int main(int argc, char **argv)
 
                 rrgl_bind_texture(tex->handle);
 		rrgl_texcoord_pointer(tex->coords);
-                struct Object *p = objects.ptr;
+                Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
                         rrgl_load_tform(&p[i].t);
                         rrgl_draw_rect(&p[i].s, 0);

@@ -1,7 +1,6 @@
 # includes and libs
 INCS = `pkg-config --cflags sdl libpng`
 LIBS = `pkg-config --libs sdl gl glu libpng` -lphysfs
-PLATFORM = posix/rrsleep.c
 
 #### Win
 INCS = -I../SDL/include/ -DNO_STDIO_REDIRECT \
@@ -9,7 +8,7 @@ INCS = -I../SDL/include/ -DNO_STDIO_REDIRECT \
 LIBS = -lmingw32 \
        -L../SDL/lib/ -lSDLmain -lSDL -lopengl32 -lglu32 \
        -lpng -L../physfs/ -lphysfs -lz
-PLATFORM = win/SDL_win32_main.c win/rrsleep.c
+PLATFORM = win/SDL_win32_main.c
 
 #### OSX:
 LIBS = `pkg-config --libs sdl libpng` -lphysfs -framework OpenGL
