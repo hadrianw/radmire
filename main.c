@@ -63,8 +63,8 @@ typedef float coord;
 #define COLOR_SHIFT(X)    (X)
 #endif
 
-#define PRESSING_KEY(key) (pressed_keys[key] && changed_keys[key])
-#define PRESSING_BTN(btn) (pressed_buttons[btn] && changed_buttons[btn])
+#define PRESSING_KEY(key) (input.keyboard.pressed[key] && input.keyboard.changed[key])
+#define PRESSING_BTN(btn) (input.mouse.pressed[btn] && input.mouse.changed[btn])
 
 #define LOG_ERROR(fmt, ...) rr_error(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
 
@@ -120,6 +120,23 @@ typedef struct {
 } Batch;
 
 typedef struct {
+	SDL_Event event;
+	struct {
+		bool pressed[SDLK_LAST];
+		bool changed[SDLK_LAST];
+	} keyboard;
+	struct {
+		Vec2 abs;
+		Vec2 rel;
+		Vec2 screenabs;
+		Vec2 screenrel;
+		bool moved;
+		bool pressed[SDL_MAX_BUTTONS];
+		bool changed[SDL_MAX_BUTTONS];
+	} mouse;
+} Input;
+
+typedef struct {
 	int width;
 	int height;
 	int bpp;
@@ -133,6 +150,16 @@ typedef struct {
 	coord bottom;
 	coord right;
 } Screen;
+
+typedef struct {
+	unsigned int fps;
+	int ticks;
+	double step;
+	clock_t clockstep;
+	clock_t time;
+	clock_t prev;
+	clock_t diff;
+} Timer;
 
 typedef struct {
         Tform t;
@@ -169,49 +196,35 @@ static Texture *findtex(Array *map, const char *name);
 static Texture *rr_findntex(Array *map, size_t nel, const char *name);
 static void rr_freemaptex(Array *map);
 
-static void batch_init(void);
-static void batch_vertex_pointer(Vec2 *pointer);
-static void batch_color_pointer(Color *pointer);
-static void batch_texcoord_pointer(Vec2 *pointer);
-static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
-static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
-
-static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
-
-static void batch_init(void);
-
-static void batch_vertex_pointer(Vec2 *pointer);
-static void batch_color_pointer(Color *pointer);
-static void batch_texcoord_pointer(Vec2 *pointer);
-static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
-static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
-
-static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
-
-static void batch_flush(void);
-
 static void batch_bind_texture(GLuint texture);
-static void rr_set_base_diagonal(int width, int height);
-static void rr_set_base_vertical(int width, int height);
-static void rr_set_base_none(int width, int height);
-static void rr_set_base_horizontal(int width, int height);
+static void batch_color_pointer(Color *pointer);
+static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
+static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
+static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
+static void batch_flush(void);
+static void batch_init(void);
+static void batch_texcoord_pointer(Vec2 *pointer);
+static void batch_vertex_pointer(Vec2 *pointer);
 
-static void setscreentform(int width, int height, coord left, coord right, coord bottom, coord top);
+static void setbasediagonal(int width, int height);
+static void setbasevertical(int width, int height);
+static void setbasenone(int width, int height);
+static void setbasehorizontal(int width, int height);
+
 static int setfullscreen(int base);
-static int setvideomode(int width, int height, int bpp, bool fullscreen, int base);
+static int resize(int width, int height, int bpp, bool fullscreen, int base);
 
 static void beginframe(void);
 static void beginscene(void);
 static void endscene(void);
 static void endframe(void);
-static int rr_init(int argc, char **argv);
-static void rr_deinit(void);
+static int init(int argc, char **argv);
 
 /* variables */
-static Batch batch = {
-	.mode = GL_QUADS,
-};
+static Batch batch = { .mode = GL_QUADS };
 static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
+static Input input;
+static bool running = false;
 static Screen screen = {
 	.width = -1,
 	.height = -1,
@@ -221,54 +234,30 @@ static Screen screen = {
 	},
 	.full = false
 };
+static void (*setbase[])(int, int) = {
+	[Diagonal] = setbasediagonal,
+        [Vertical] = setbasevertical,
+        [NoneBase] = setbasenone,
+        [Horizontal] = setbasehorizontal
+};
 static const Vec2 texcoordsidentity[4] = {
 	{0.0f, 1.0f},
 	{1.0f, 1.0f},
 	{1.0f, 0.0f},
 	{0.0f, 0.0f}
 };
-static Array texmap = {
-	.size = sizeof(Texture*)
-};
+static Array texmap = { .size = sizeof(Texture*) };
 static const Tform tformidentity = {
         {1.0f, 0.0f},
         {0.0f, 1.0f},
         {0.0f, 0.0f}
 };
-static const Vec2 vec2zero = {0.0f, 0.0f};
+static Timer timer = { .fps = 60 };
+static const Vec2 vec2zero;
 
-static bool pressed_keys[SDLK_LAST] = { false };
-static bool changed_keys[SDLK_LAST] = { false };
-static bool pressed_buttons[SDL_MAX_BUTTONS] = { false };
-static bool changed_buttons[SDL_MAX_BUTTONS] = { false };
-static Vec2 rr_abs_mouse = {0.0f, 0.0f};
-static Vec2 rr_rel_mouse = {0.0f, 0.0f};
-static Vec2 rr_abs_screen_mouse = {0.0f, 0.0f};
-static Vec2 rr_rel_screen_mouse = {0.0f, 0.0f};
-static bool rr_mouse_moved = false;
-static bool rr_key_pressed = false;
-static bool rr_button_pressed = false;
-static bool rr_key_released = false;
-static bool rr_button_released = false;
-
-static bool running = false;
-static SDL_Event rr_sdl_event;
 static Array objects = {
         .size = sizeof(Object)
 };
-static void (*set_base_handler[])(int, int) = {
-	[Diagonal] = rr_set_base_diagonal,
-        [Vertical] = rr_set_base_vertical,
-        [NoneBase] = rr_set_base_none,
-        [Horizontal] = rr_set_base_horizontal
-};
-static unsigned int rr_fps = 60;
-static coord rr_step = 0;
-static clock_t rr_time_step;
-static clock_t rr_time;
-static clock_t rr_time_prev;
-static clock_t rr_time_diff;
-static int ticks = 0;
 
 /* function implementations */
 void sleepc(clock_t iv)
@@ -662,6 +651,8 @@ void rr_freemaptex(Array *map)
 }
 void batch_init(void)
 {
+        batch.color = colorwhite;
+        batch.tform = tformidentity;
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glEnableClientState(GL_COLOR_ARRAY);
@@ -789,7 +780,7 @@ void batch_bind_texture(GLuint texture)
         batch.activetex = texture;
 }
 
-void rr_set_base_diagonal(int width, int height)
+void setbasediagonal(int width, int height)
 {
         screen.top = screen.right = 100.0f * 2.0f
 	                    / sqrtf(width * width + height * height);
@@ -800,7 +791,7 @@ void rr_set_base_diagonal(int width, int height)
         screen.bottom = -screen.top;
 }
 
-void rr_set_base_vertical(int width, int height)
+void setbasevertical(int width, int height)
 {
         screen.right = 100.0f * width / height;
         screen.left = -screen.right;
@@ -808,7 +799,7 @@ void rr_set_base_vertical(int width, int height)
         screen.bottom = -screen.top;
 }
 
-void rr_set_base_none(int width, int height)
+void setbasenone(int width, int height)
 {
         screen.right = width * 0.5f;
         screen.left = -screen.right;
@@ -816,7 +807,7 @@ void rr_set_base_none(int width, int height)
         screen.bottom = -screen.top;
 }
 
-void rr_set_base_horizontal(int width, int height)
+void setbasehorizontal(int width, int height)
 {
         screen.right = 100.0f;
         screen.left = -screen.right;
@@ -824,27 +815,13 @@ void rr_set_base_horizontal(int width, int height)
         screen.bottom = -screen.top;
 }
 
-void setscreentform(int width, int height, coord left, coord right, coord bottom, coord top)
-{
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        gluOrtho2D(left, right, bottom, top);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        screen.tform.col1.x = (right - left) / width;
-        screen.tform.col2.y = (bottom - top) / height;
-        screen.tform.pos.x = left;
-        screen.tform.pos.y = top;
-}
-
 int setfullscreen(int base)
 {
         const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        return setvideomode(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
+        return resize(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
 }
 
-int setvideomode(int width, int height, int bpp, bool fullscreen, int base)
+int resize(int width, int height, int bpp, bool fullscreen, int base)
 {
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bpp / 4);
@@ -884,67 +861,66 @@ int setvideomode(int width, int height, int bpp, bool fullscreen, int base)
         screen.full = fullscreen;
 
         glViewport(0, 0, width, height);
- 	set_base_handler[base](width, height);
+ 	setbase[base](width, height);
         screen.base = base;
-        setscreentform(width, height, screen.left, screen.right, screen.bottom, screen.top);
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluOrtho2D(screen.left, screen.right, screen.bottom, screen.top);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        screen.tform.col1.x = (screen.right - screen.left) / width;
+        screen.tform.col2.y = (screen.bottom - screen.top) / height;
+        screen.tform.pos.x = screen.left;
+        screen.tform.pos.y = screen.top;
         return 0;
 }
 
 void beginframe(void)
 {
-        for(unsigned int i=0; i < SDLK_LAST; ++i)
-                changed_keys[i] = false;
-        for(unsigned int i=0; i < SDL_MAX_BUTTONS; ++i)
-                changed_buttons[i] = false;
-        rr_rel_mouse = vec2zero;
-        rr_mouse_moved = false;
-        rr_key_pressed = false;
-        rr_button_pressed = false;
-        rr_key_released = false;
-        rr_button_released = false;
-        while(SDL_PollEvent(&rr_sdl_event)) {
-                switch(rr_sdl_event.type) {
+	memset(input.keyboard.changed, 0, sizeof(input.keyboard.changed));
+	memset(input.mouse.changed, 0, sizeof(input.mouse.changed));
+	input.mouse.rel = vec2zero;
+        while(SDL_PollEvent(&input.event)) {
+                switch(input.event.type) {
                 case SDL_QUIT:
                         running = false;
                         return;
                 case SDL_MOUSEMOTION:
-                        rr_rel_mouse.x += rr_sdl_event.motion.xrel;
-                        rr_rel_mouse.y += rr_sdl_event.motion.yrel;
-                        rr_abs_mouse.x = rr_sdl_event.motion.x;
-                        rr_abs_mouse.y = rr_sdl_event.motion.y;
-                        rr_mouse_moved = true;
+                        input.mouse.rel.x += input.event.motion.xrel;
+                        input.mouse.rel.y += input.event.motion.yrel;
+                        input.mouse.abs.x = input.event.motion.x;
+                        input.mouse.abs.y = input.event.motion.y;
+                        input.mouse.moved = true;
                         break;
                 case SDL_MOUSEBUTTONDOWN:
-                        pressed_buttons[rr_sdl_event.button.button-1] = true;
-                        changed_buttons[rr_sdl_event.button.button-1] = true;
-                        rr_button_pressed = true;
+                        input.mouse.pressed[input.event.button.button-1] = true;
+                        input.mouse.changed[input.event.button.button-1] = true;
                         break;
                 case SDL_MOUSEBUTTONUP:
-                        pressed_buttons[rr_sdl_event.button.button-1] = false;
-                        changed_buttons[rr_sdl_event.button.button-1] = true;
-                        rr_button_released = true;
+                        input.mouse.pressed[input.event.button.button-1] = false;
+                        input.mouse.changed[input.event.button.button-1] = true;
                         break;
                 case SDL_KEYDOWN:
-                        pressed_keys[rr_sdl_event.key.keysym.sym] = true;
-                        changed_keys[rr_sdl_event.key.keysym.sym] = true;
-                        rr_key_pressed = true;
+                        input.keyboard.pressed[input.event.key.keysym.sym] = true;
+                        input.keyboard.changed[input.event.key.keysym.sym] = true;
                         break;
                 case SDL_KEYUP:
-                        pressed_keys[rr_sdl_event.key.keysym.sym] = false;
-                        changed_keys[rr_sdl_event.key.keysym.sym] = true;
-                        rr_key_released = true;
+                        input.keyboard.pressed[input.event.key.keysym.sym] = false;
+                        input.keyboard.changed[input.event.key.keysym.sym] = true;
                         break;
                 case SDL_VIDEORESIZE:
-                        setvideomode(rr_sdl_event.resize.w,
-                                        rr_sdl_event.resize.h, screen.bpp,
+                        resize(input.event.resize.w,
+                                        input.event.resize.h, screen.bpp,
                                         screen.full, screen.base);
                         break;
                 }
         }
-        rr_abs_screen_mouse = TFORMVEC2(screen.tform,
-                        rr_abs_mouse); 
-        rr_rel_screen_mouse = TFORMRVEC2(screen.tform,
-                        rr_rel_mouse); 
+        input.mouse.screenabs = TFORMVEC2(screen.tform,
+                        input.mouse.abs); 
+        input.mouse.screenrel = TFORMRVEC2(screen.tform,
+                        input.mouse.rel); 
 }
 
 void beginscene(void)
@@ -963,23 +939,23 @@ void endscene(void)
 
 void endframe(void)
 {
-        rr_time = clock();
-        rr_time_diff = rr_time - rr_time_prev;
+        timer.time = clock();
+        timer.diff = timer.time - timer.prev;
 
-        if(rr_time_diff < rr_time_step) {
-                rr_time_diff = rr_time_step - rr_time_diff;
-		sleepc(rr_time_diff);
-                ticks++;
-                if(ticks == rr_fps) {
-                        printf("%f\n", rr_time_diff / (double)CLOCKS_PER_SEC);
-                        ticks = 0;
+        if(timer.diff < timer.clockstep) {
+                timer.diff = timer.clockstep - timer.diff;
+		sleepc(timer.diff);
+                timer.ticks++;
+                if(timer.ticks == timer.fps) {
+                        printf("%f\n", timer.diff / (double)CLOCKS_PER_SEC);
+                        timer.ticks = 0;
                 }
         }
 
-        rr_time_prev = rr_time;
+        timer.prev = timer.time;
 }
 
-int rr_init(int argc, char **argv)
+int init(int argc, char **argv)
 {
 	if(!PHYSFS_init(argv[0]))
                 goto out;
@@ -988,7 +964,7 @@ int rr_init(int argc, char **argv)
 
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
                 goto out_physfs;
-        if(setvideomode(1024, 768, 32, false, Diagonal))
+        if(resize(1024, 768, 32, false, Diagonal))
         //if(setfullscreen(Diagonal))
                 goto out_sdl;
 
@@ -1003,12 +979,10 @@ int rr_init(int argc, char **argv)
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
         batch_init();
-        batch.color = colorwhite;
-        batch.tform = tformidentity;
 
-        rr_step = 1 / rr_fps;
-        rr_time_step = CLOCKS_PER_SEC / rr_fps;
-        rr_time_prev = clock();
+        timer.step = 1 / timer.fps;
+        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
+        timer.prev = clock();
 
         running = true;
         return 0;
@@ -1021,15 +995,9 @@ out:
         return -2;
 }
 
-void rr_deinit(void)
-{
-        SDL_Quit();
-        PHYSFS_deinit();
-}
-
 int main(int argc, char **argv)
 {
-        if(rr_init(argc, argv)) {
+        if(init(argc, argv)) {
                 return -1;
         }
 
@@ -1053,14 +1021,14 @@ int main(int argc, char **argv)
 
         while(running) {
                 beginframe();
-                if(pressed_keys[SDLK_ESCAPE])
+                if(input.keyboard.pressed[SDLK_ESCAPE])
                         running = false;
-                if(changed_buttons[1] && pressed_buttons[1]) {
+                if(input.mouse.changed[1] && input.mouse.pressed[1]) {
                         Object new = {
                                 tformidentity,
                                 {50, 50}
                         };
-                        new.t.pos = rr_abs_screen_mouse;
+                        new.t.pos = input.mouse.screenabs;
                         arraypush(&objects, &new);
                 }
                 beginscene();
@@ -1074,7 +1042,7 @@ int main(int argc, char **argv)
                 }
 
 		batch_texcoord_pointer(tex->coords);
-                mouse.t.pos = rr_abs_screen_mouse;
+                mouse.t.pos = input.mouse.screenabs;
                 batch.tform = mouse.t;
                 batch_draw_rect(&mouse.s, 0);
 
@@ -1091,7 +1059,9 @@ int main(int argc, char **argv)
         }
 
         rr_freemaptex(&texmap);
-        rr_deinit();
+
+        SDL_Quit();
+        PHYSFS_deinit();
         return 0;
 }
 
