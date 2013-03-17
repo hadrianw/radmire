@@ -104,6 +104,37 @@ typedef struct {
 } Texture;
 
 typedef struct {
+	GLuint activetex;
+	GLenum mode;
+	Tform tform;
+	Color color;
+	Vec2 *vertices;
+	Color *colors;
+	Vec2 *texcoords;
+	struct {
+		unsigned int count;
+		Vec2 vertices[BATCH_VERTS];
+		Color colors[BATCH_VERTS];
+		Vec2 texcoords[BATCH_VERTS];
+	} array;
+} Batch;
+
+typedef struct {
+	int width;
+	int height;
+	int bpp;
+	SDL_PixelFormat format;
+	bool full;
+
+	Tform tform;
+	int base;
+	coord top;
+	coord left;
+	coord bottom;
+	coord right;
+} Screen;
+
+typedef struct {
         Tform t;
         Vec2 s;
 } Object;
@@ -113,14 +144,14 @@ static void sleepc(clock_t iv);
 static uint32_t topow2(uint32_t v);
 static void rr_error(const char *file, int line, const char *function, const char *format, ...);
 
-static void rrarray_resize(Array *array, size_t nmemb);
-static size_t rrarray_push(Array *array, void *src);
+static void arrayresize(Array *array, size_t nmemb);
+static size_t arraypush(Array *array, void *src);
 // removes element at index
 // moves last element to removed element
 // returns index of moved element or/and size of resized array
-static size_t rrarray_remove(Array *array, size_t index);
-static size_t rrarray_remove2(Array *array, size_t index);
-static void rrarray_free(Array *array);
+static size_t arrayremove(Array *array, size_t index);
+static size_t arrayremove2(Array *array, size_t index);
+static void arrayfree(Array *array);
 
 static SDL_Surface *loadimg(const char *path);
 static SDL_Surface *formatimg(SDL_Surface *src);
@@ -138,117 +169,73 @@ static Texture *findtex(Array *map, const char *name);
 static Texture *rr_findntex(Array *map, size_t nel, const char *name);
 static void rr_freemaptex(Array *map);
 
-static void rrgl_init(void);
-static void rrgl_vertex_pointer(Vec2 *pointer);
-static void rrgl_color_pointer(Color *pointer);
-static void rrgl_texcoord_pointer(Vec2 *pointer);
-static void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count);
-static void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
+static void batch_init(void);
+static void batch_vertex_pointer(Vec2 *pointer);
+static void batch_color_pointer(Color *pointer);
+static void batch_texcoord_pointer(Vec2 *pointer);
+static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
+static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
 
-static void rrgl_draw_rect(const Vec2 *size, const Vec2 *align);
+static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
 
-static void rrgl_init(void);
+static void batch_init(void);
 
-static void rrgl_vertex_pointer(Vec2 *pointer);
-static void rrgl_color_pointer(Color *pointer);
-static void rrgl_texcoord_pointer(Vec2 *pointer);
-static void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count);
-static void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
+static void batch_vertex_pointer(Vec2 *pointer);
+static void batch_color_pointer(Color *pointer);
+static void batch_texcoord_pointer(Vec2 *pointer);
+static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
+static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
 
-static void rrgl_draw_rect(const Vec2 *size, const Vec2 *align);
+static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
 
-static void rrgl_flush(void);
+static void batch_flush(void);
 
-static void rrgl_color(Color color);
-static void rrgl_load_tform(const Tform *t);
-static void rrgl_bind_texture(GLuint texture);
+static void batch_bind_texture(GLuint texture);
 static void rr_set_base_diagonal(int width, int height);
 static void rr_set_base_vertical(int width, int height);
 static void rr_set_base_none(int width, int height);
 static void rr_set_base_horizontal(int width, int height);
 
-static void rr_set_screen_tform(int width, int height, coord left, coord right, coord bottom, coord top);
-static void rr_resize(int width, int height, int base);
-static int rr_fullscreen_mode(int base);
-static int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base);
+static void setscreentform(int width, int height, coord left, coord right, coord bottom, coord top);
+static int setfullscreen(int base);
+static int setvideomode(int width, int height, int bpp, bool fullscreen, int base);
 
-static void rr_begin_frame(void);
-static void rr_begin_scene(void);
-static void rr_end_scene(void);
-static void rr_end_frame(void);
+static void beginframe(void);
+static void beginscene(void);
+static void endscene(void);
+static void endframe(void);
 static int rr_init(int argc, char **argv);
 static void rr_deinit(void);
 
 /* variables */
-static Array rr_map = {
-	.size = sizeof(Texture*)
+static Batch batch = {
+	.mode = GL_QUADS,
 };
-
-static const Vec2 vec2zero = {0.0f, 0.0f};
-
-static const Vec2 vec2top_left      = {0.0f, 0.0f};
-static const Vec2 vec2top_center    = {0.5f, 0.0f};
-static const Vec2 vec2top_right     = {1.0f, 0.0f};
-
-static const Vec2 vec2middle_left   = {0.0f, 0.5f};
-static const Vec2 vec2center        = {0.5f, 0.5f};
-static const Vec2 vec2middle_right  = {1.0f, 0.5f};
-
-static const Vec2 vec2bottom_left   = {0.0f, 1.0f};
-static const Vec2 vec2bottom_center = {0.5f, 1.0f};
-static const Vec2 vec2bottom_right  = {1.0f, 1.0f};
-
-static const Tform rr_tform_identity = {
-        {1.0f, 0.0f},
-        {0.0f, 1.0f},
-        {0.0f, 0.0f}
+static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
+static Screen screen = {
+	.width = -1,
+	.height = -1,
+	.bpp = -1,
+	.format = {
+		.alpha = 255
+	},
+	.full = false
 };
-
-static const Color rr_white = {0xFF, 0xFF, 0xFF, 0xFF};
-static const Color rr_magenta = {0xFF, 0x00, 0xFF, 0xFF};
-static const Color rr_red = {0xFF, 0x00, 0x00, 0xFF};
-static const Color rr_green = {0x00, 0xFF, 0x00, 0xFF};
-
-static const Vec2 rr_texcoords_identity[4] = {
+static const Vec2 texcoordsidentity[4] = {
 	{0.0f, 1.0f},
 	{1.0f, 1.0f},
 	{1.0f, 0.0f},
 	{0.0f, 0.0f}
 };
-
-static Vec2 *vertices = NULL;
-static Color *colors = NULL;
-static Vec2 *texcoords = NULL;
-
-static Vec2 batch_vertices[BATCH_VERTS];
-static Color batch_colors[BATCH_VERTS];
-static Vec2 batch_texcoords[BATCH_VERTS];
-static unsigned int batch_count = 0;
-static GLenum batch_mode = GL_QUADS;
-
-static Tform tform;
-static Color color;
-
-static GLuint active_texture = 0;
-
-static int rr_width = -1;
-static int rr_height = -1;
-static int rr_bpp = -1;
-static SDL_PixelFormat rr_format = {
-        .alpha = 255
+static Array texmap = {
+	.size = sizeof(Texture*)
 };
-static bool rr_fullscreen = false;
-
-static coord rr_top;
-static coord rr_left;
-static coord rr_bottom;
-static coord rr_right;
-
-static int rr_base;
-
-static Tform rr_screen_tform;
-static coord rr_width_factor = 0.0f;
-static coord rr_height_factor = 0.0f;
+static const Tform tformidentity = {
+        {1.0f, 0.0f},
+        {0.0f, 1.0f},
+        {0.0f, 0.0f}
+};
+static const Vec2 vec2zero = {0.0f, 0.0f};
 
 static bool pressed_keys[SDLK_LAST] = { false };
 static bool changed_keys[SDLK_LAST] = { false };
@@ -289,7 +276,7 @@ void sleepc(clock_t iv)
 	SDL_Delay(iv * 1000 / CLOCKS_PER_SEC);
 }
 
-void rrarray_resize(Array *array, size_t nmemb)
+void arrayresize(Array *array, size_t nmemb)
 {
         size_t nalloc = topow2(nmemb);
         if(nmemb < array->nmemb && array->nalloc > nalloc * 2)
@@ -299,10 +286,10 @@ void rrarray_resize(Array *array, size_t nmemb)
         array->nmemb = nmemb;
 }
 
-size_t rrarray_push(Array *array, void *src)
+size_t arraypush(Array *array, void *src)
 {
         size_t last = array->nmemb * array->size;
-        rrarray_resize(array, array->nmemb + 1);
+        arrayresize(array, array->nmemb + 1);
         memcpy((char*)array->ptr + last, src, array->size);
         return last;
 }
@@ -310,7 +297,7 @@ size_t rrarray_push(Array *array, void *src)
 // removes element at index
 // moves last element to removed element
 // returns index of moved element or/and size of resized array
-size_t rrarray_remove(Array *array, size_t index)
+size_t arrayremove(Array *array, size_t index)
 {
         size_t last = array->nmemb - 1;
         if(last != index) {
@@ -319,20 +306,20 @@ size_t rrarray_remove(Array *array, size_t index)
                 last *= array->size;
                 memcpy(ptr + index, ptr + last, array->size);
         }
-        rrarray_resize(array, array->nmemb - 1);
+        arrayresize(array, array->nmemb - 1);
         return array->nmemb;
 }
 
-size_t rrarray_remove2(Array *array, size_t index)
+size_t arrayremove2(Array *array, size_t index)
 {
         char *ptr = array->ptr;
         ptr += index * array->size;
         memmove(ptr, ptr + array->size, (array->nmemb - index - 1) * array->size);
-        rrarray_resize(array, array->nmemb - 1);
+        arrayresize(array, array->nmemb - 1);
         return array->nmemb;
 }
 
-void rrarray_free(Array *array)
+void arrayfree(Array *array)
 {
         free(array->ptr);
 }
@@ -391,7 +378,7 @@ SDL_Surface *loadimg(const char *path)
 
 SDL_Surface *formatimg(SDL_Surface *src)
 {
-        return SDL_ConvertSurface(src, &rr_format, SDL_SWSURFACE);
+        return SDL_ConvertSurface(src, &screen.format, SDL_SWSURFACE);
 }
 
 Texture *rr_loadrrtex(const char *path)
@@ -609,7 +596,7 @@ int loadatlas(Array *map, const char *spec, const char *image)
 			freetex(tex);
 		} else {
 			printf("inserting: %s\n", tex->name);
-			rrarray_push(map, &tex);
+			arraypush(map, &tex);
                         ntex++;
 		}
         }
@@ -636,7 +623,7 @@ Texture *gettex(Array *map, const char *name)
 
         printf("not found: %s, loading\n", name);
 	tex = rr_loadrrtex(name);
-        rrarray_push(map, &tex);
+        arraypush(map, &tex);
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);
         return tex;
@@ -673,91 +660,93 @@ void rr_freemaptex(Array *map)
         map->nmemb = 0;
         map->nalloc = 0;
 }
-void rrgl_init(void)
+void batch_init(void)
 {
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         glEnableClientState(GL_COLOR_ARRAY);
 }
 
-void rrgl_vertex_pointer(Vec2 *pointer)
+void batch_vertex_pointer(Vec2 *pointer)
 {
-        vertices = pointer;
+        batch.vertices = pointer;
 }
 
-void rrgl_color_pointer(Color *pointer)
+void batch_color_pointer(Color *pointer)
 {
-        colors = pointer;
+        batch.colors = pointer;
 }
 
-void rrgl_texcoord_pointer(Vec2 *pointer)
+void batch_texcoord_pointer(Vec2 *pointer)
 {
-        texcoords = pointer;
+        batch.texcoords = pointer;
 }
 
-void rrgl_draw_arrays(GLenum mode, GLint first, GLsizei count)
-{
-        unsigned int i;
-        if(count > BATCH_VERTS) {
-                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
-                return;
-        }
-        if(batch_mode != mode || batch_count + count > BATCH_VERTS) {
-                rrgl_flush();
-                batch_mode = mode;
-        }
-        for(i = 0; i < count; ++i)
-                batch_vertices[batch_count + i]
-                        = TFORMVEC2(tform, vertices[first + i]);
-        if(colors)
-                memcpy(batch_colors + batch_count, colors + first,
-                                sizeof(*colors) * count);
-        else
-                for(i = 0; i < count; ++i)
-                        batch_colors[batch_count + i] = color;
-        if(texcoords)
-                memcpy(batch_texcoords + batch_count, texcoords + first,
-                                sizeof(*texcoords) * count);
-
-        batch_count += count;
-}
-
-void rrgl_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
+void batch_draw_arrays(GLenum mode, GLint first, GLsizei count)
 {
         unsigned int i;
         if(count > BATCH_VERTS) {
                 LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
                 return;
         }
-        if(batch_mode != mode || batch_count + count > BATCH_VERTS) {
-                rrgl_flush();
-                batch_mode = mode;
+        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
+                batch_flush();
+                batch.mode = mode;
         }
         for(i = 0; i < count; ++i)
-                batch_vertices[batch_count + i]
-                        = TFORMVEC2(tform, vertices[indices[i]]);
-        if(colors)
-                for(i = 0; i < count; ++i)
-                        batch_colors[batch_count + i]
-                                = colors[indices[i]];
+                batch.array.vertices[batch.array.count + i]
+                        = TFORMVEC2(batch.tform, batch.vertices[first + i]);
+        if(batch.colors)
+                memcpy(batch.array.colors + batch.array.count,
+		       batch.colors + first,
+                       sizeof(*batch.colors) * count);
         else
                 for(i = 0; i < count; ++i)
-                        batch_colors[batch_count + i] = color;
-        if(texcoords)
-                for(i = 0; i < count; ++i)
-                        batch_texcoords[batch_count + i]
-                                = texcoords[indices[i]];
+                        batch.array.colors[batch.array.count + i] = batch.color;
+        if(batch.texcoords)
+                memcpy(batch.array.texcoords + batch.array.count,
+		       batch.texcoords + first,
+                       sizeof(*batch.texcoords) * count);
 
-        batch_count += count;
+        batch.array.count += count;
 }
 
-void rrgl_draw_rect(const Vec2 *size, const Vec2 *align)
+void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
+{
+        unsigned int i;
+        if(count > BATCH_VERTS) {
+                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
+                return;
+        }
+        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
+                batch_flush();
+                batch.mode = mode;
+        }
+        for(i = 0; i < count; ++i)
+                batch.array.vertices[batch.array.count + i]
+                        = TFORMVEC2(batch.tform, batch.vertices[indices[i]]);
+        if(batch.colors)
+                for(i = 0; i < count; ++i)
+                        batch.array.colors[batch.array.count + i]
+                                = batch.colors[indices[i]];
+        else
+                for(i = 0; i < count; ++i)
+                        batch.array.colors[batch.array.count + i] = batch.color;
+        if(batch.texcoords)
+                for(i = 0; i < count; ++i)
+                        batch.array.texcoords[batch.array.count + i]
+                                = batch.texcoords[indices[i]];
+
+        batch.array.count += count;
+}
+
+void batch_draw_rect(const Vec2 *size, const Vec2 *align)
 {
         if(!size)
                 return;
 
         if(!align)
-                align = &vec2center;
+                align = &(Vec2){0.5f, 0.5f};
         /* 3 ,--, 2
              | /|
              |/ |
@@ -770,81 +759,72 @@ void rrgl_draw_rect(const Vec2 *size, const Vec2 *align)
         };
         static const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
 
-        rrgl_vertex_pointer(vs);
-        rrgl_color_pointer(NULL);
-        rrgl_draw_elements(GL_TRIANGLES, LENGTH(is), is);
-        rrgl_vertex_pointer(NULL);
+        batch_vertex_pointer(vs);
+        batch_color_pointer(NULL);
+        batch_draw_elements(GL_TRIANGLES, LENGTH(is), is);
+        batch_vertex_pointer(NULL);
 }
 
-void rrgl_flush()
+void batch_flush()
 {
-        glVertexPointer(2, GL_COORD, 0, batch_vertices);
-        glTexCoordPointer(2, GL_COORD, 0, batch_texcoords);
-        glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch_colors);
+        glVertexPointer(2, GL_COORD, 0, batch.array.vertices);
+        glTexCoordPointer(2, GL_COORD, 0, batch.array.texcoords);
+        glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch.array.colors);
 
-        if(batch_mode < GL_TRIANGLES)
+        if(batch.mode < GL_TRIANGLES)
                 glDisable(GL_TEXTURE_2D);
-        glDrawArrays(batch_mode, 0, batch_count);
-        if(batch_mode < GL_TRIANGLES)
+        glDrawArrays(batch.mode, 0, batch.array.count);
+        if(batch.mode < GL_TRIANGLES)
                 glEnable(GL_TEXTURE_2D);
-        batch_count = 0;
+        batch.array.count = 0;
 }
 
-void rrgl_color(Color c)
+void batch_bind_texture(GLuint texture)
 {
-        color = c;
-}
-
-void rrgl_load_tform(const Tform *t)
-{
-        tform = *t;
-}
-
-void rrgl_bind_texture(GLuint texture)
-{
-        if(active_texture == texture)
+        if(batch.activetex == texture)
                 return;
 
-	rrgl_flush();
+	batch_flush();
         glBindTexture(GL_TEXTURE_2D, texture);
-        active_texture = texture;
+        batch.activetex = texture;
 }
 
 void rr_set_base_diagonal(int width, int height)
 {
-        rr_top = rr_right = 100.0f*2.0f/sqrtf(width*width+height*height);
+        screen.top = screen.right = 100.0f * 2.0f
+	                    / sqrtf(width * width + height * height);
 
-        rr_right *= width;
-        rr_left = -rr_right;
-        rr_top *= height;
-        rr_bottom = -rr_top;
+        screen.right *= width;
+        screen.left = -screen.right;
+        screen.top *= height;
+        screen.bottom = -screen.top;
 }
 
 void rr_set_base_vertical(int width, int height)
 {
-        rr_right = 100.0f*width/height;
-        rr_left = -rr_right;
-        rr_top = 100.0f;
-        rr_bottom = -rr_top;
+        screen.right = 100.0f * width / height;
+        screen.left = -screen.right;
+        screen.top = 100.0f;
+        screen.bottom = -screen.top;
 }
 
 void rr_set_base_none(int width, int height)
 {
-        rr_right = width*0.5f;
-        rr_left = -rr_right;
-        rr_top = height*0.5f;
-        rr_bottom = -rr_top;
+        screen.right = width * 0.5f;
+        screen.left = -screen.right;
+        screen.top = height * 0.5f;
+        screen.bottom = -screen.top;
 }
 
 void rr_set_base_horizontal(int width, int height)
 {
-        rr_right = 100.0f;
-        rr_left = -rr_right;
-        rr_top =  100.0f*height/width;
-        rr_bottom = -rr_top;
+        screen.right = 100.0f;
+        screen.left = -screen.right;
+        screen.top =  100.0f * height / width;
+        screen.bottom = -screen.top;
 }
 
-void rr_set_screen_tform(int width, int height, coord left, coord right, coord bottom, coord top)
+void setscreentform(int width, int height, coord left, coord right, coord bottom, coord top)
 {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -852,32 +832,19 @@ void rr_set_screen_tform(int width, int height, coord left, coord right, coord b
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        rr_width_factor = (right-left)/width;
-        rr_height_factor = (bottom-top)/height;
-        rr_screen_tform = rr_tform_identity;
-        rr_screen_tform.col1.x = rr_width_factor;
-        rr_screen_tform.col2.y = rr_height_factor;
-        rr_screen_tform.pos.x = left;
-        rr_screen_tform.pos.y = top;
+        screen.tform.col1.x = (right - left) / width;
+        screen.tform.col2.y = (bottom - top) / height;
+        screen.tform.pos.x = left;
+        screen.tform.pos.y = top;
 }
 
-void rr_resize(int width, int height, int base)
-{
-        glViewport(0, 0, width, height);
-
- 	set_base_handler[base](width, height);
-        rr_base = base;
-        rr_set_screen_tform(width, height, rr_left, rr_right, rr_bottom, rr_top);
-}
-
-int rr_fullscreen_mode(int base)
+int setfullscreen(int base)
 {
         const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        return rr_set_video_mode(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
+        return setvideomode(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
 }
 
-
-int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
+int setvideomode(int width, int height, int bpp, bool fullscreen, int base)
 {
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bpp / 4);
@@ -900,27 +867,30 @@ int rr_set_video_mode(int width, int height, int bpp, bool fullscreen, int base)
         if(!SDL_SetVideoMode(width, height, bpp, flags))
                 return -1;
 
-        rr_format.BitsPerPixel = bpp;
-        rr_format.BytesPerPixel = bpp / 8;
-        rr_format.Rshift = bpp / 4 * COLOR_SHIFT(3);
-        rr_format.Gshift = bpp / 4 * COLOR_SHIFT(2);
-        rr_format.Bshift = bpp / 4 * COLOR_SHIFT(1);
-        rr_format.Ashift = bpp / 4 * COLOR_SHIFT(0);
-        rr_format.Rmask = ((1 <<  bpp / 4) - 1) << rr_format.Rshift;
-        rr_format.Gmask = ((1 <<  bpp / 4) - 1) << rr_format.Gshift;
-        rr_format.Bmask = ((1 <<  bpp / 4) - 1) << rr_format.Bshift;
-        rr_format.Amask = ((1 <<  bpp / 4) - 1) << rr_format.Ashift;
+        screen.format.BitsPerPixel = bpp;
+        screen.format.BytesPerPixel = bpp / 8;
+        screen.format.Rshift = bpp / 4 * COLOR_SHIFT(3);
+        screen.format.Gshift = bpp / 4 * COLOR_SHIFT(2);
+        screen.format.Bshift = bpp / 4 * COLOR_SHIFT(1);
+        screen.format.Ashift = bpp / 4 * COLOR_SHIFT(0);
+        screen.format.Rmask = ((1 <<  bpp / 4) - 1) << screen.format.Rshift;
+        screen.format.Gmask = ((1 <<  bpp / 4) - 1) << screen.format.Gshift;
+        screen.format.Bmask = ((1 <<  bpp / 4) - 1) << screen.format.Bshift;
+        screen.format.Amask = ((1 <<  bpp / 4) - 1) << screen.format.Ashift;
 
-        rr_width = width;
-        rr_height = height;
-        rr_bpp = bpp;
-        rr_fullscreen = fullscreen;
+        screen.width = width;
+        screen.height = height;
+        screen.bpp = bpp;
+        screen.full = fullscreen;
 
-        rr_resize(rr_width, rr_height, base);
+        glViewport(0, 0, width, height);
+ 	set_base_handler[base](width, height);
+        screen.base = base;
+        setscreentform(width, height, screen.left, screen.right, screen.bottom, screen.top);
         return 0;
 }
 
-void rr_begin_frame(void)
+void beginframe(void)
 {
         for(unsigned int i=0; i < SDLK_LAST; ++i)
                 changed_keys[i] = false;
@@ -965,33 +935,33 @@ void rr_begin_frame(void)
                         rr_key_released = true;
                         break;
                 case SDL_VIDEORESIZE:
-                        rr_set_video_mode(rr_sdl_event.resize.w,
-                                        rr_sdl_event.resize.h, rr_bpp,
-                                        rr_fullscreen, rr_base);
+                        setvideomode(rr_sdl_event.resize.w,
+                                        rr_sdl_event.resize.h, screen.bpp,
+                                        screen.full, screen.base);
                         break;
                 }
         }
-        rr_abs_screen_mouse = TFORMVEC2(rr_screen_tform,
+        rr_abs_screen_mouse = TFORMVEC2(screen.tform,
                         rr_abs_mouse); 
-        rr_rel_screen_mouse = TFORMRVEC2(rr_screen_tform,
+        rr_rel_screen_mouse = TFORMRVEC2(screen.tform,
                         rr_rel_mouse); 
 }
 
-void rr_begin_scene(void)
+void beginscene(void)
 {
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 }
 
-void rr_end_scene(void)
+void endscene(void)
 {
-        rrgl_flush();
+        batch_flush();
         glFlush();
         SDL_GL_SwapBuffers();
 }
 
-void rr_end_frame(void)
+void endframe(void)
 {
         rr_time = clock();
         rr_time_diff = rr_time - rr_time_prev;
@@ -1018,8 +988,8 @@ int rr_init(int argc, char **argv)
 
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
                 goto out_physfs;
-        if(rr_set_video_mode(1024, 768, 32, false, Diagonal))
-        //if(rr_fullscreen_mode(Diagonal))
+        if(setvideomode(1024, 768, 32, false, Diagonal))
+        //if(setfullscreen(Diagonal))
                 goto out_sdl;
 
         SDL_WM_SetCaption("Radmire", NULL);
@@ -1032,9 +1002,9 @@ int rr_init(int argc, char **argv)
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
-        rrgl_init();
-        rrgl_color(rr_white);
-        rrgl_load_tform(&rr_tform_identity);
+        batch_init();
+        batch.color = colorwhite;
+        batch.tform = tformidentity;
 
         rr_step = 1 / rr_fps;
         rr_time_step = CLOCKS_PER_SEC / rr_fps;
@@ -1063,16 +1033,16 @@ int main(int argc, char **argv)
                 return -1;
         }
 
-	loadatlas(&rr_map, "atlas/target.atlas", "atlas/target.png");
-	Texture *tex = gettex(&rr_map, "ball.png");
+	loadatlas(&texmap, "atlas/target.atlas", "atlas/target.png");
+	Texture *tex = gettex(&texmap, "ball.png");
 
         Object mouse = {
-                rr_tform_identity,
+                tformidentity,
                 { 12, 12 }
         };
         
         Object ball = {
-                rr_tform_identity,
+                tformidentity,
                 { 32, 32 }
         };
         
@@ -1082,45 +1052,45 @@ int main(int argc, char **argv)
         };
 
         while(running) {
-                rr_begin_frame();
+                beginframe();
                 if(pressed_keys[SDLK_ESCAPE])
                         running = false;
                 if(changed_buttons[1] && pressed_buttons[1]) {
                         Object new = {
-                                rr_tform_identity,
+                                tformidentity,
                                 {50, 50}
                         };
                         new.t.pos = rr_abs_screen_mouse;
-                        rrarray_push(&objects, &new);
+                        arraypush(&objects, &new);
                 }
-                rr_begin_scene();
+                beginscene();
 
-                rrgl_bind_texture(tex->handle);
-		rrgl_texcoord_pointer(tex->coords);
+                batch_bind_texture(tex->handle);
+		batch_texcoord_pointer(tex->coords);
                 Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
-                        rrgl_load_tform(&p[i].t);
-                        rrgl_draw_rect(&p[i].s, 0);
+                        batch.tform = p[i].t;
+                        batch_draw_rect(&p[i].s, 0);
                 }
 
-		rrgl_texcoord_pointer(tex->coords);
+		batch_texcoord_pointer(tex->coords);
                 mouse.t.pos = rr_abs_screen_mouse;
-                rrgl_load_tform(&mouse.t);
-                rrgl_draw_rect(&mouse.s, 0);
+                batch.tform = mouse.t;
+                batch_draw_rect(&mouse.s, 0);
 
-		rrgl_texcoord_pointer(tex->coords);
-                rrgl_load_tform(&ball.t);
-                rrgl_draw_rect(&ball.s, 0);
+		batch_texcoord_pointer(tex->coords);
+                batch.tform = ball.t;
+                batch_draw_rect(&ball.s, 0);
 
-                rrgl_vertex_pointer(line);
-                rrgl_load_tform(&rr_tform_identity);
-                rrgl_draw_arrays(GL_LINES, 0, LENGTH(line));
+                batch_vertex_pointer(line);
+                batch.tform = tformidentity;
+                batch_draw_arrays(GL_LINES, 0, LENGTH(line));
 
-                rr_end_scene();
-                rr_end_frame();
+                endscene();
+                endframe();
         }
 
-        rr_freemaptex(&rr_map);
+        rr_freemaptex(&texmap);
         rr_deinit();
         return 0;
 }
