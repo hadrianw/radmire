@@ -1,12 +1,13 @@
-# includes and libs
-INCS = `pkg-config --cflags sdl libpng`
-LIBS = `pkg-config --libs-only-L sdl` \
-       `pkg-config --libs-only-l sdl` \
-       `pkg-config --libs libpng`
+# *nix
+PLATFORMLIBS = -lm
 
-#### Win
-INCS = -I../../SDL/include/
-LIBS = -lmingw32 -L../../SDL/lib/ -lSDL -lpng -lz
+# Win
+#PLATFORMLIBS = -static -lmingw32
+#PLATFORM = win/SDL_win32_main.c
+
+# includes and libs
+INCS = 
+LIBS = -lSDL ${PLATFORMLIBS} -lpng -lz
 
 # flags
 CPPFLAGS = -D_SDL_main_h
