@@ -1,10 +1,6 @@
-*.d
 *.o
 *.swp
 config.mk
-game-c
+game
 gmon.out
 atlas/atlas
-test/test
-rrserver/rrserver
-rrserver/rrclient

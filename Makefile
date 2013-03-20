@@ -1,15 +1,15 @@
 include config.mk
 
-all: game-c
+all: game
 
 include contrib/SDL_image.mk
 
-SRC = main.c \
+SRC = game.c \
       ${SDLIMAGESRC} \
       ${PLATFORM}
 OBJ = ${SRC:.c=.o}
 
-game-c: ${OBJ}
+game: ${OBJ}
 	@echo CC -o $@
 	@${CC} -o $@ $+ ${LDFLAGS}
 
