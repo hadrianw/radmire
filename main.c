@@ -61,8 +61,8 @@ typedef float coord;
 #define COLOR_SHIFT(X)    (X)
 #endif
 
-#define PRESSING_KEY(key) (input.keyboard.pressed[key] && input.keyboard.changed[key])
 #define PRESSING_BTN(btn) (input.mouse.pressed[btn] && input.mouse.changed[btn])
+#define PRESSING_KEY(key) (input.keyboard.pressed[key] && input.keyboard.changed[key])
 
 enum { BATCH_VERTS = 16384 };
 enum { SDL_MAX_BUTTONS = 255 };
@@ -80,18 +80,18 @@ typedef struct {
 } Tform;
 
 typedef struct {
-        uint8_t red;
-        uint8_t green;
-        uint8_t blue;
-        uint8_t alpha;
-} Color;
-
-typedef struct {
         void *ptr;
         size_t nalloc;
         size_t nmemb;
         size_t size;
 } Array;
+
+typedef struct {
+        uint8_t red;
+        uint8_t green;
+        uint8_t blue;
+        uint8_t alpha;
+} Color;
 
 typedef struct {
         unsigned int handle;
@@ -133,6 +133,11 @@ typedef struct {
 } Input;
 
 typedef struct {
+        Tform t;
+        Vec2 s;
+} Object;
+
+typedef struct {
 	int width;
 	int height;
 	int bpp;
@@ -157,66 +162,55 @@ typedef struct {
 	clock_t diff;
 } Timer;
 
-typedef struct {
-        Tform t;
-        Vec2 s;
-} Object;
-
 /* function declarations */
-static void sleepc(clock_t iv);
-static uint32_t topow2(uint32_t v);
-static Tform tformfromvec2(const Vec2 v);
-static void tformsetangle(Tform *t, coord angle);
-
-static void arrayresize(Array *array, size_t nmemb);
-static size_t arraypush(Array *array, void *src);
 static size_t arrayflipremove(Array *array, size_t index);
-static size_t arrayremove(Array *array, size_t index);
 static void arrayfree(Array *array);
-
-static SDL_Surface *formatimg(SDL_Surface *src);
-static Texture *loadtexstruct(const char *path);
-static unsigned int loadtex(const char *path);
-static unsigned int maketex(SDL_Surface *surface);
-static SDL_Surface *pow2img(SDL_Surface *src);
-
-static void freetex(Texture *tex);
-static int texcmp(const Texture **a, const Texture **b);
-static int strtexcmp(const char *a, const Texture **b);
-static int loadatlas(Array *map, const char *spc, const char *img);
-static Texture *gettex(Array *map, const char *name);
-static Texture *findtex(Array *map, const char *name);
-static Texture *findntex(Array *map, size_t nel, const char *name);
-static void freetexmap(Array *map);
-
+static size_t arraypush(Array *array, void *src);
+static size_t arrayremove(Array *array, size_t index);
+static void arrayresize(Array *array, size_t nmemb);
 static void batch_bind_texture(GLuint texture);
-static void batch_color_pointer(Color *pointer);
 static void batch_draw_arrays(GLenum mode, GLint first, GLsizei count);
 static void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices);
 static void batch_draw_rect(const Vec2 *size, const Vec2 *align);
 static void batch_flush(void);
 static void batch_init(void);
-static void batch_texcoord_pointer(Vec2 *pointer);
-static void batch_vertex_pointer(Vec2 *pointer);
-
-static void setbasediagonal(int width, int height);
-static void setbasevertical(int width, int height);
-static void setbasenone(int width, int height);
-static void setbasehorizontal(int width, int height);
-
-static int setfullscreen(int base);
-static int resize(int width, int height, int bpp, bool fullscreen, int base);
-
-static void beginframe(void);
 static void beginscene(void);
-static void endscene(void);
+static void beginframe(void);
 static void endframe(void);
+static void endscene(void);
+static Texture *findntex(Array *map, size_t nel, const char *name);
+static Texture *findtex(Array *map, const char *name);
+static SDL_Surface *formatimg(SDL_Surface *src);
+static void freetex(Texture *tex);
+static void freetexmap(Array *map);
+static Texture *gettex(Array *map, const char *name);
 static int init(int argc, char **argv);
+static int loadatlas(Array *map, const char *spc, const char *img);
+static unsigned int loadtex(const char *path);
+static Texture *loadtexstruct(const char *path);
+static unsigned int maketex(SDL_Surface *surface);
+static SDL_Surface *pow2img(SDL_Surface *src);
+static int resize(int width, int height, int bpp, bool fullscreen, int base);
+static void setbasediagonal(int width, int height);
+static void setbasehorizontal(int width, int height);
+static void setbasenone(int width, int height);
+static void setbasevertical(int width, int height);
+static int setfullscreen(int base);
+static void sleepc(clock_t iv);
+static Texture *specline(Array *map, FILE *specfile);
+static int strtexcmp(const char *a, const Texture **b);
+static int texcmp(const Texture **a, const Texture **b);
+static Tform tformfromvec2(const Vec2 v);
+static void tformsetangle(Tform *t, coord angle);
+static uint32_t topow2(uint32_t v);
 
 /* variables */
 static Batch batch = { .mode = GL_QUADS };
 static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
 static Input input;
+static Array objects = {
+        .size = sizeof(Object)
+};
 static bool running = false;
 static Screen screen = {
 	.width = -1,
@@ -248,39 +242,13 @@ static const Tform tformidentity = {
 static Timer timer = { .fps = 60 };
 static const Vec2 vec2zero;
 
-static Array objects = {
-        .size = sizeof(Object)
-};
-
 /* function implementations */
-void sleepc(clock_t iv)
-{
-	SDL_Delay(iv * 1000 / CLOCKS_PER_SEC);
-}
-
-void arrayresize(Array *array, size_t nmemb)
-{
-        size_t nalloc = topow2(nmemb);
-        if(nmemb < array->nmemb && array->nalloc > nalloc * 2)
-                nalloc *= 2;
-        array->ptr = realloc(array->ptr, nalloc * array->size);
-        array->nalloc = nalloc;
-        array->nmemb = nmemb;
-}
-
-size_t arraypush(Array *array, void *src)
-{
-        size_t last = array->nmemb * array->size;
-        arrayresize(array, array->nmemb + 1);
-        memcpy((char*)array->ptr + last, src, array->size);
-        return last;
-}
-
-// removes element at index
-// moves last element to removed element
-// returns index of moved element or/and size of resized array
-size_t arrayflipremove(Array *array, size_t index)
-{
+size_t
+arrayflipremove(Array *array, size_t index) {
+/* removes element at index
+ * moves last element to removed element
+ * returns index of moved element or/and size of resized array
+ */
         size_t last = array->nmemb - 1;
         if(last != index) {
                 char *ptr = array->ptr;
@@ -292,8 +260,21 @@ size_t arrayflipremove(Array *array, size_t index)
         return array->nmemb;
 }
 
-size_t arrayremove(Array *array, size_t index)
-{
+void
+arrayfree(Array *array) {
+        free(array->ptr);
+}
+
+size_t
+arraypush(Array *array, void *src) {
+        size_t last = array->nmemb * array->size;
+        arrayresize(array, array->nmemb + 1);
+        memcpy((char*)array->ptr + last, src, array->size);
+        return last;
+}
+
+size_t
+arrayremove(Array *array, size_t index) {
         char *ptr = array->ptr;
         ptr += index * array->size;
         memmove(ptr, ptr + array->size, (array->nmemb - index - 1) * array->size);
@@ -301,50 +282,374 @@ size_t arrayremove(Array *array, size_t index)
         return array->nmemb;
 }
 
-void arrayfree(Array *array)
-{
-        free(array->ptr);
+void
+arrayresize(Array *array, size_t nmemb) {
+        size_t nalloc = topow2(nmemb);
+        if(nmemb < array->nmemb && array->nalloc > nalloc * 2)
+                nalloc *= 2;
+        array->ptr = realloc(array->ptr, nalloc * array->size);
+        array->nalloc = nalloc;
+        array->nmemb = nmemb;
 }
 
-uint32_t topow2(uint32_t v)
-{
-        v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return ++v;
+void
+batch_bind_texture(GLuint texture) {
+        if(batch.activetex == texture)
+                return;
+
+	batch_flush();
+        glBindTexture(GL_TEXTURE_2D, texture);
+        batch.activetex = texture;
 }
 
-void tformsetangle(Tform *t, coord angle)
-{       
-        coord c = cosc(angle);
-        coord s = sinc(angle);
-	t->col1.x = c; t->col2.x = -s;
-	t->col1.y = s; t->col2.y = c;
+void
+batch_draw_arrays(GLenum mode, GLint first, GLsizei count) {
+        unsigned int i;
+        if(count > BATCH_VERTS) {
+                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
+                return;
+        }
+        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
+                batch_flush();
+                batch.mode = mode;
+        }
+        for(i = 0; i < count; ++i)
+                batch.array.vertices[batch.array.count + i]
+                        = TFORMVEC2(batch.tform, batch.vertices[first + i]);
+        if(batch.colors)
+                memcpy(batch.array.colors + batch.array.count,
+		       batch.colors + first,
+                       sizeof(*batch.colors) * count);
+        else
+                for(i = 0; i < count; ++i)
+                        batch.array.colors[batch.array.count + i] = batch.color;
+        if(batch.texcoords)
+                memcpy(batch.array.texcoords + batch.array.count,
+		       batch.texcoords + first,
+                       sizeof(*batch.texcoords) * count);
+
+        batch.array.count += count;
 }
 
-Tform tformfromvec2(const Vec2 v)
-{       
-        Tform res;
-        coord len = VEC2LEN(v);
-        coord c = v.x / len;
-        coord s = v.y / len;
+void
+batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices) {
+        unsigned int i;
+        if(count > BATCH_VERTS) {
+                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
+                return;
+        }
+        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
+                batch_flush();
+                batch.mode = mode;
+        }
+        for(i = 0; i < count; ++i)
+                batch.array.vertices[batch.array.count + i]
+                        = TFORMVEC2(batch.tform, batch.vertices[indices[i]]);
+        if(batch.colors)
+                for(i = 0; i < count; ++i)
+                        batch.array.colors[batch.array.count + i]
+                                = batch.colors[indices[i]];
+        else
+                for(i = 0; i < count; ++i)
+                        batch.array.colors[batch.array.count + i] = batch.color;
+        if(batch.texcoords)
+                for(i = 0; i < count; ++i)
+                        batch.array.texcoords[batch.array.count + i]
+                                = batch.texcoords[indices[i]];
 
-        res.col1.x = c; res.col2.x = -s; res.pos.x = len;
-        res.col1.y = s; res.col2.y = c; res.pos.y = 0;
-
-	return res;
+        batch.array.count += count;
 }
 
-SDL_Surface *formatimg(SDL_Surface *src)
-{
+void
+batch_draw_rect(const Vec2 *size, const Vec2 *align) {
+        if(!size)
+                return;
+
+        if(!align)
+                align = &(Vec2){0.5f, 0.5f};
+        /* 3 ,--, 2
+             | /|
+             |/ |
+           0 '--' 1 */
+        Vec2 vs[4] = {
+                {size->x *       - align->x , size->y * (align->y - 1.0f)},
+                {size->x * (1.0f - align->x), size->y * (align->y - 1.0f)},
+                {size->x * (1.0f - align->x), size->y *  align->y        },
+                {size->x *       - align->x , size->y *  align->y        }
+        };
+        static const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
+
+	batch.vertices = vs;
+        batch.colors = NULL;
+        batch_draw_elements(GL_TRIANGLES, LENGTH(is), is);
+	batch.vertices = NULL;
+}
+
+void
+batch_flush() {
+        glVertexPointer(2, GL_COORD, 0, batch.array.vertices);
+        glTexCoordPointer(2, GL_COORD, 0, batch.array.texcoords);
+        glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch.array.colors);
+
+        if(batch.mode < GL_TRIANGLES)
+                glDisable(GL_TEXTURE_2D);
+        glDrawArrays(batch.mode, 0, batch.array.count);
+        if(batch.mode < GL_TRIANGLES)
+                glEnable(GL_TEXTURE_2D);
+        batch.array.count = 0;
+}
+
+void
+batch_init(void) {
+        batch.color = colorwhite;
+        batch.tform = tformidentity;
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+}
+
+void
+beginframe(void) {
+	memset(input.keyboard.changed, 0, sizeof(input.keyboard.changed));
+	memset(input.mouse.changed, 0, sizeof(input.mouse.changed));
+	input.mouse.rel = vec2zero;
+        while(SDL_PollEvent(&input.event)) {
+                switch(input.event.type) {
+                case SDL_QUIT:
+                        running = false;
+                        return;
+                case SDL_MOUSEMOTION:
+                        input.mouse.rel.x += input.event.motion.xrel;
+                        input.mouse.rel.y += input.event.motion.yrel;
+                        input.mouse.abs.x = input.event.motion.x;
+                        input.mouse.abs.y = input.event.motion.y;
+                        input.mouse.moved = true;
+                        break;
+                case SDL_MOUSEBUTTONDOWN:
+                        input.mouse.pressed[input.event.button.button-1] = true;
+                        input.mouse.changed[input.event.button.button-1] = true;
+                        break;
+                case SDL_MOUSEBUTTONUP:
+                        input.mouse.pressed[input.event.button.button-1] = false;
+                        input.mouse.changed[input.event.button.button-1] = true;
+                        break;
+                case SDL_KEYDOWN:
+                        input.keyboard.pressed[input.event.key.keysym.sym] = true;
+                        input.keyboard.changed[input.event.key.keysym.sym] = true;
+                        break;
+                case SDL_KEYUP:
+                        input.keyboard.pressed[input.event.key.keysym.sym] = false;
+                        input.keyboard.changed[input.event.key.keysym.sym] = true;
+                        break;
+                case SDL_VIDEORESIZE:
+                        resize(input.event.resize.w,
+                                        input.event.resize.h, screen.bpp,
+                                        screen.full, screen.base);
+                        break;
+                }
+        }
+        input.mouse.screenabs = TFORMVEC2(screen.tform,
+                        input.mouse.abs); 
+        input.mouse.screenrel = TFORMRVEC2(screen.tform,
+                        input.mouse.rel); 
+}
+
+void
+beginscene(void) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+}
+
+void
+endframe(void) {
+        timer.time = clock();
+        timer.diff = timer.time - timer.prev;
+
+        if(timer.diff < timer.clockstep) {
+                timer.diff = timer.clockstep - timer.diff;
+		sleepc(timer.diff);
+                timer.ticks++;
+                if(timer.ticks == timer.fps) {
+                        printf("%f\n", timer.diff / (double)CLOCKS_PER_SEC);
+                        timer.ticks = 0;
+                }
+        }
+
+        timer.prev = timer.time;
+}
+
+void
+endscene(void) {
+        batch_flush();
+        glFlush();
+        SDL_GL_SwapBuffers();
+}
+
+Texture*
+findntex(Array *map, size_t nel, const char *name) {
+	if(!map || !name)
+		return NULL;
+
+	Texture **match;
+	match = bsearch(name, map->ptr, nel, map->size,
+	                (int(*)(const void*, const void*))strtexcmp);
+
+	return match ? *match : NULL;
+}
+
+Texture*
+findtex(Array *map, const char *name) {
+	if(!map || !name)
+		return NULL;
+	return findntex(map, map->nmemb, name);
+}
+
+SDL_Surface*
+formatimg(SDL_Surface *src) {
         return SDL_ConvertSurface(src, &screen.format, SDL_SWSURFACE);
 }
 
-Texture *loadtexstruct(const char *path)
-{
+void
+freetex(Texture *tex) {
+	if(!tex)
+		return;
+	free(tex->name);
+	free(tex);
+}
+
+void
+freetexmap(Array *map) {
+        Texture **tex = map->ptr;
+        for(size_t i = 0; i < map->nmemb; i++) {
+                glDeleteTextures(1, &tex[i]->handle);
+                freetex(tex[i]);
+        }
+        free(map->ptr);
+        map->ptr = 0;
+        map->nmemb = 0;
+        map->nalloc = 0;
+}
+
+Texture*
+gettex(Array *map, const char *name) {
+	if(!map || !name)
+		return NULL;
+	Texture * tex = findtex(map, name);
+        if(tex)
+                return tex;
+
+        printf("not found: %s, loading\n", name);
+	tex = loadtexstruct(name);
+        arraypush(map, &tex);
+	qsort(map->ptr, map->nmemb, map->size,
+	      (int(*)(const void*, const void*))texcmp);
+        return tex;
+}
+
+int
+init(int argc, char **argv) {
+        if(SDL_Init(SDL_INIT_VIDEO) < 0)
+                goto out;
+        if(resize(1024, 768, 32, false, Diagonal))
+        //if(setfullscreen(Diagonal))
+                goto out_sdl;
+
+        SDL_WM_SetCaption("Radmire", NULL);
+        SDL_EnableKeyRepeat(0, 0);
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glShadeModel(GL_SMOOTH);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
+        glPointSize(4.0f);
+        batch_init();
+
+        timer.step = 1 / timer.fps;
+        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
+        timer.prev = clock();
+
+        running = true;
+        return 0;
+
+out_sdl:
+        SDL_Quit();
+out:
+        return -2;
+}
+
+int
+loadatlas(Array *map, const char *spec, const char *image) {
+	if(!map || !spec || !image)
+		return 0;
+	
+	FILE *specfile = fopen(spec, "rb");
+	if(!spec)
+		return 0;
+
+	unsigned int atlas = loadtex(image);
+
+	size_t nprev = map->nmemb;
+	Texture *tex;
+	Texture *dup;
+        int ntex;
+        for(ntex = 0; (tex = specline(map, specfile)); ) {
+		tex->handle = atlas;
+		dup = findntex(map, nprev, tex->name);
+		// Ignore this line on duplicate, or we could:
+		// memset(dup, tex,
+		//        sizeof(Texture) - sizeof(tex->name));
+		// freetex(tex);
+		// tex = dup;
+		if(dup) {
+			printf("duplicate found: %s\n", tex->name);
+			freetex(tex);
+		} else {
+			printf("inserting: %s\n", tex->name);
+			arraypush(map, &tex);
+                        ntex++;
+		}
+        }
+	fclose(specfile);
+
+        if(!ntex) {
+                glDeleteTextures(1, &atlas);
+                return 0;
+        }
+
+	qsort(map->ptr, map->nmemb, map->size,
+	      (int(*)(const void*, const void*))texcmp);
+
+	return ntex;
+}
+
+unsigned int
+loadtex(const char *path) {
+        unsigned int handle = 0;
+        SDL_Surface *orig = NULL;
+        SDL_Surface *conv = NULL;
+
+        orig = IMG_Load(path);
+        if(!orig)
+                goto out_orig;
+
+        conv = formatimg(orig);
+        if(!conv)
+                goto out_conv;
+
+        handle = maketex(conv);
+
+        SDL_FreeSurface(conv);
+out_conv:
+        SDL_FreeSurface(orig);
+out_orig:
+        return handle;
+}
+
+Texture*
+loadtexstruct(const char *path) {
 	Texture *tex = NULL;
         SDL_Surface *orig = NULL;
 	SDL_Surface *pow2 = NULL;
@@ -393,31 +698,8 @@ out_orig:
         return tex;
 }
 
-unsigned int loadtex(const char *path)
-{
-        unsigned int handle = 0;
-        SDL_Surface *orig = NULL;
-        SDL_Surface *conv = NULL;
-
-        orig = IMG_Load(path);
-        if(!orig)
-                goto out_orig;
-
-        conv = formatimg(orig);
-        if(!conv)
-                goto out_conv;
-
-        handle = maketex(conv);
-
-        SDL_FreeSurface(conv);
-out_conv:
-        SDL_FreeSurface(orig);
-out_orig:
-        return handle;
-}
-
-unsigned int maketex(SDL_Surface *surface)
-{
+unsigned int
+maketex(SDL_Surface *surface) {
         GLenum type;
         unsigned int handle;
 
@@ -447,8 +729,8 @@ unsigned int maketex(SDL_Surface *surface)
         return handle;
 }
 
-SDL_Surface *pow2img(SDL_Surface *src)
-{
+SDL_Surface*
+pow2img(SDL_Surface *src) {
         if(ISPOW2(src->w) && ISPOW2(src->h))
                 return src;
         SDL_SetAlpha(src, 0, SDL_ALPHA_OPAQUE);
@@ -468,334 +750,8 @@ SDL_Surface *pow2img(SDL_Surface *src)
 
 }
 
-int texcmp(const Texture **a, const Texture **b)
-{
-	// FIXME: is this possible:
-	if(!a || !b)
-		return (a ? 1 : 0) - (b ? 1 : 0);
-
-	return strcmp((*a)->name, (*b)->name);
-}
-
-int strtexcmp(const char *a, const Texture **b)
-{
-	// FIXME: is this possible:
-	if(!a || !b)
-		return (a ? 1 : 0) - (b ? 1 : 0);
-
-	return strcmp(a, (*b)->name);
-}
-
-void freetex(Texture *tex)
-{
-	if(!tex)
-		return;
-	free(tex->name);
-	free(tex);
-}
-
-Texture *specline(Array *map, FILE *specfile)
-{
-	static char buff[BUFSIZ];
-	Texture *tex;
-	tex = calloc(1, sizeof(tex[0]));
-
-	int nread = 0;
-	Vec2 pos;
-	Vec2 siz;
-	nread = fscanf(specfile, "%lf %lf %lf %lf ",
-	               &pos.x, &pos.y, &siz.x, &siz.y);
-	if(nread != 4
-           || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
-           || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
-		goto free;
-	tex->coords[0] = (Vec2){pos.x, pos.y + siz.y};
-	tex->coords[1] = VEC2PLUS(pos, siz);
-	tex->coords[2] = (Vec2){pos.x + siz.x, pos.y};
-	tex->coords[3] = pos;
-
-	fgets(buff, LENGTH(buff), specfile);	
-	size_t bufflen = strlen(buff);
-	if(buff[bufflen-1] == '\n')
-		buff[bufflen-1] = '\0';
-	else
-		goto free;
-	tex->name = malloc((bufflen + 1) * sizeof(tex->name[0]));
-	strcpy(tex->name, buff);
-
-        return tex;
-
-free:
-        freetex(tex);
-        return NULL;
-}
-
-int loadatlas(Array *map, const char *spec, const char *image)
-{
-	if(!map || !spec || !image)
-		return 0;
-	
-	FILE *specfile = fopen(spec, "rb");
-	if(!spec)
-		return 0;
-
-	unsigned int atlas = loadtex(image);
-
-	size_t nprev = map->nmemb;
-	Texture *tex;
-	Texture *dup;
-        int ntex;
-        for(ntex = 0; (tex = specline(map, specfile)); ) {
-		tex->handle = atlas;
-		dup = findntex(map, nprev, tex->name);
-		// Ignore this line on duplicate, or we could:
-		// memset(dup, tex,
-		//        sizeof(Texture) - sizeof(tex->name));
-		// freetex(tex);
-		// tex = dup;
-		if(dup) {
-			printf("duplicate found: %s\n", tex->name);
-			freetex(tex);
-		} else {
-			printf("inserting: %s\n", tex->name);
-			arraypush(map, &tex);
-                        ntex++;
-		}
-        }
-	fclose(specfile);
-
-        if(!ntex) {
-                glDeleteTextures(1, &atlas);
-                return 0;
-        }
-
-	qsort(map->ptr, map->nmemb, map->size,
-	      (int(*)(const void*, const void*))texcmp);
-
-	return ntex;
-}
-
-Texture *gettex(Array *map, const char *name)
-{
-	if(!map || !name)
-		return NULL;
-	Texture * tex = findtex(map, name);
-        if(tex)
-                return tex;
-
-        printf("not found: %s, loading\n", name);
-	tex = loadtexstruct(name);
-        arraypush(map, &tex);
-	qsort(map->ptr, map->nmemb, map->size,
-	      (int(*)(const void*, const void*))texcmp);
-        return tex;
-}
-
-Texture *findtex(Array *map, const char *name)
-{
-	if(!map || !name)
-		return NULL;
-	return findntex(map, map->nmemb, name);
-}
-
-Texture *findntex(Array *map, size_t nel, const char *name)
-{
-	if(!map || !name)
-		return NULL;
-
-	Texture **match;
-	match = bsearch(name, map->ptr, nel, map->size,
-	                (int(*)(const void*, const void*))strtexcmp);
-
-	return match ? *match : NULL;
-}
-
-void freetexmap(Array *map)
-{
-        Texture **tex = map->ptr;
-        for(size_t i = 0; i < map->nmemb; i++) {
-                glDeleteTextures(1, &tex[i]->handle);
-                freetex(tex[i]);
-        }
-        free(map->ptr);
-        map->ptr = 0;
-        map->nmemb = 0;
-        map->nalloc = 0;
-}
-void batch_init(void)
-{
-        batch.color = colorwhite;
-        batch.tform = tformidentity;
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-}
-
-void batch_vertex_pointer(Vec2 *pointer)
-{
-        batch.vertices = pointer;
-}
-
-void batch_color_pointer(Color *pointer)
-{
-        batch.colors = pointer;
-}
-
-void batch_texcoord_pointer(Vec2 *pointer)
-{
-        batch.texcoords = pointer;
-}
-
-void batch_draw_arrays(GLenum mode, GLint first, GLsizei count)
-{
-        unsigned int i;
-        if(count > BATCH_VERTS) {
-                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
-                return;
-        }
-        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
-                batch_flush();
-                batch.mode = mode;
-        }
-        for(i = 0; i < count; ++i)
-                batch.array.vertices[batch.array.count + i]
-                        = TFORMVEC2(batch.tform, batch.vertices[first + i]);
-        if(batch.colors)
-                memcpy(batch.array.colors + batch.array.count,
-		       batch.colors + first,
-                       sizeof(*batch.colors) * count);
-        else
-                for(i = 0; i < count; ++i)
-                        batch.array.colors[batch.array.count + i] = batch.color;
-        if(batch.texcoords)
-                memcpy(batch.array.texcoords + batch.array.count,
-		       batch.texcoords + first,
-                       sizeof(*batch.texcoords) * count);
-
-        batch.array.count += count;
-}
-
-void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices)
-{
-        unsigned int i;
-        if(count > BATCH_VERTS) {
-                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
-                return;
-        }
-        if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
-                batch_flush();
-                batch.mode = mode;
-        }
-        for(i = 0; i < count; ++i)
-                batch.array.vertices[batch.array.count + i]
-                        = TFORMVEC2(batch.tform, batch.vertices[indices[i]]);
-        if(batch.colors)
-                for(i = 0; i < count; ++i)
-                        batch.array.colors[batch.array.count + i]
-                                = batch.colors[indices[i]];
-        else
-                for(i = 0; i < count; ++i)
-                        batch.array.colors[batch.array.count + i] = batch.color;
-        if(batch.texcoords)
-                for(i = 0; i < count; ++i)
-                        batch.array.texcoords[batch.array.count + i]
-                                = batch.texcoords[indices[i]];
-
-        batch.array.count += count;
-}
-
-void batch_draw_rect(const Vec2 *size, const Vec2 *align)
-{
-        if(!size)
-                return;
-
-        if(!align)
-                align = &(Vec2){0.5f, 0.5f};
-        /* 3 ,--, 2
-             | /|
-             |/ |
-           0 '--' 1 */
-        Vec2 vs[4] = {
-                {size->x *       - align->x , size->y * (align->y - 1.0f)},
-                {size->x * (1.0f - align->x), size->y * (align->y - 1.0f)},
-                {size->x * (1.0f - align->x), size->y *  align->y        },
-                {size->x *       - align->x , size->y *  align->y        }
-        };
-        static const unsigned int is[2 * 3] = {0, 2, 3, 0, 1, 2};
-
-        batch_vertex_pointer(vs);
-        batch_color_pointer(NULL);
-        batch_draw_elements(GL_TRIANGLES, LENGTH(is), is);
-        batch_vertex_pointer(NULL);
-}
-
-void batch_flush()
-{
-        glVertexPointer(2, GL_COORD, 0, batch.array.vertices);
-        glTexCoordPointer(2, GL_COORD, 0, batch.array.texcoords);
-        glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch.array.colors);
-
-        if(batch.mode < GL_TRIANGLES)
-                glDisable(GL_TEXTURE_2D);
-        glDrawArrays(batch.mode, 0, batch.array.count);
-        if(batch.mode < GL_TRIANGLES)
-                glEnable(GL_TEXTURE_2D);
-        batch.array.count = 0;
-}
-
-void batch_bind_texture(GLuint texture)
-{
-        if(batch.activetex == texture)
-                return;
-
-	batch_flush();
-        glBindTexture(GL_TEXTURE_2D, texture);
-        batch.activetex = texture;
-}
-
-void setbasediagonal(int width, int height)
-{
-        screen.top = screen.right = 100.0f * 2.0f
-	                    / sqrtf(width * width + height * height);
-
-        screen.right *= width;
-        screen.left = -screen.right;
-        screen.top *= height;
-        screen.bottom = -screen.top;
-}
-
-void setbasevertical(int width, int height)
-{
-        screen.right = 100.0f * width / height;
-        screen.left = -screen.right;
-        screen.top = 100.0f;
-        screen.bottom = -screen.top;
-}
-
-void setbasenone(int width, int height)
-{
-        screen.right = width * 0.5f;
-        screen.left = -screen.right;
-        screen.top = height * 0.5f;
-        screen.bottom = -screen.top;
-}
-
-void setbasehorizontal(int width, int height)
-{
-        screen.right = 100.0f;
-        screen.left = -screen.right;
-        screen.top =  100.0f * height / width;
-        screen.bottom = -screen.top;
-}
-
-int setfullscreen(int base)
-{
-        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        return resize(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
-}
-
-int resize(int width, int height, int bpp, bool fullscreen, int base)
-{
+int
+resize(int width, int height, int bpp, bool fullscreen, int base) {
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, bpp / 4);
@@ -850,115 +806,136 @@ int resize(int width, int height, int bpp, bool fullscreen, int base)
         return 0;
 }
 
-void beginframe(void)
-{
-	memset(input.keyboard.changed, 0, sizeof(input.keyboard.changed));
-	memset(input.mouse.changed, 0, sizeof(input.mouse.changed));
-	input.mouse.rel = vec2zero;
-        while(SDL_PollEvent(&input.event)) {
-                switch(input.event.type) {
-                case SDL_QUIT:
-                        running = false;
-                        return;
-                case SDL_MOUSEMOTION:
-                        input.mouse.rel.x += input.event.motion.xrel;
-                        input.mouse.rel.y += input.event.motion.yrel;
-                        input.mouse.abs.x = input.event.motion.x;
-                        input.mouse.abs.y = input.event.motion.y;
-                        input.mouse.moved = true;
-                        break;
-                case SDL_MOUSEBUTTONDOWN:
-                        input.mouse.pressed[input.event.button.button-1] = true;
-                        input.mouse.changed[input.event.button.button-1] = true;
-                        break;
-                case SDL_MOUSEBUTTONUP:
-                        input.mouse.pressed[input.event.button.button-1] = false;
-                        input.mouse.changed[input.event.button.button-1] = true;
-                        break;
-                case SDL_KEYDOWN:
-                        input.keyboard.pressed[input.event.key.keysym.sym] = true;
-                        input.keyboard.changed[input.event.key.keysym.sym] = true;
-                        break;
-                case SDL_KEYUP:
-                        input.keyboard.pressed[input.event.key.keysym.sym] = false;
-                        input.keyboard.changed[input.event.key.keysym.sym] = true;
-                        break;
-                case SDL_VIDEORESIZE:
-                        resize(input.event.resize.w,
-                                        input.event.resize.h, screen.bpp,
-                                        screen.full, screen.base);
-                        break;
-                }
-        }
-        input.mouse.screenabs = TFORMVEC2(screen.tform,
-                        input.mouse.abs); 
-        input.mouse.screenrel = TFORMRVEC2(screen.tform,
-                        input.mouse.rel); 
+void
+setbasediagonal(int width, int height) {
+        screen.top = screen.right = 100.0f * 2.0f
+	                    / sqrtf(width * width + height * height);
+
+        screen.right *= width;
+        screen.left = -screen.right;
+        screen.top *= height;
+        screen.bottom = -screen.top;
 }
 
-void beginscene(void)
-{
-        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
+void
+setbasehorizontal(int width, int height) {
+        screen.right = 100.0f;
+        screen.left = -screen.right;
+        screen.top =  100.0f * height / width;
+        screen.bottom = -screen.top;
 }
 
-void endscene(void)
-{
-        batch_flush();
-        glFlush();
-        SDL_GL_SwapBuffers();
+void
+setbasenone(int width, int height) {
+        screen.right = width * 0.5f;
+        screen.left = -screen.right;
+        screen.top = height * 0.5f;
+        screen.bottom = -screen.top;
 }
 
-void endframe(void)
-{
-        timer.time = clock();
-        timer.diff = timer.time - timer.prev;
-
-        if(timer.diff < timer.clockstep) {
-                timer.diff = timer.clockstep - timer.diff;
-		sleepc(timer.diff);
-                timer.ticks++;
-                if(timer.ticks == timer.fps) {
-                        printf("%f\n", timer.diff / (double)CLOCKS_PER_SEC);
-                        timer.ticks = 0;
-                }
-        }
-
-        timer.prev = timer.time;
+void
+setbasevertical(int width, int height) {
+        screen.right = 100.0f * width / height;
+        screen.left = -screen.right;
+        screen.top = 100.0f;
+        screen.bottom = -screen.top;
 }
 
-int init(int argc, char **argv)
-{
-        if(SDL_Init(SDL_INIT_VIDEO) < 0)
-                goto out;
-        if(resize(1024, 768, 32, false, Diagonal))
-        //if(setfullscreen(Diagonal))
-                goto out_sdl;
+int
+setfullscreen(int base) {
+        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
+        return resize(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
+}
 
-        SDL_WM_SetCaption("Radmire", NULL);
-        SDL_EnableKeyRepeat(0, 0);
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_TEXTURE_2D);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glShadeModel(GL_SMOOTH);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
-        glPointSize(4.0f);
-        batch_init();
+void
+sleepc(clock_t iv) {
+	SDL_Delay(iv * 1000 / CLOCKS_PER_SEC);
+}
 
-        timer.step = 1 / timer.fps;
-        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
-        timer.prev = clock();
+Texture*
+specline(Array *map, FILE *specfile) {
+	static char buff[BUFSIZ];
+	Texture *tex;
+	tex = calloc(1, sizeof(tex[0]));
 
-        running = true;
-        return 0;
+	int nread = 0;
+	Vec2 pos;
+	Vec2 siz;
+	nread = fscanf(specfile, "%lf %lf %lf %lf ",
+	               &pos.x, &pos.y, &siz.x, &siz.y);
+	if(nread != 4
+           || pos.x < 0 || pos.x >= 1 || pos.y < 0 || pos.y >= 1
+           || siz.x <= 0 || siz.x > 1 || siz.y <= 0 || siz.y > 1)
+		goto free;
+	tex->coords[0] = (Vec2){pos.x, pos.y + siz.y};
+	tex->coords[1] = VEC2PLUS(pos, siz);
+	tex->coords[2] = (Vec2){pos.x + siz.x, pos.y};
+	tex->coords[3] = pos;
 
-out_sdl:
-        SDL_Quit();
-out:
-        return -2;
+	fgets(buff, LENGTH(buff), specfile);	
+	size_t bufflen = strlen(buff);
+	if(buff[bufflen-1] == '\n')
+		buff[bufflen-1] = '\0';
+	else
+		goto free;
+	tex->name = malloc((bufflen + 1) * sizeof(tex->name[0]));
+	strcpy(tex->name, buff);
+
+        return tex;
+
+free:
+        freetex(tex);
+        return NULL;
+}
+
+int
+strtexcmp(const char *a, const Texture **b) {
+	// FIXME: is this possible:
+	if(!a || !b)
+		return (a ? 1 : 0) - (b ? 1 : 0);
+
+	return strcmp(a, (*b)->name);
+}
+
+Tform
+tformfromvec2(const Vec2 v) {       
+        Tform res;
+        coord len = VEC2LEN(v);
+        coord c = v.x / len;
+        coord s = v.y / len;
+
+        res.col1.x = c; res.col2.x = -s; res.pos.x = len;
+        res.col1.y = s; res.col2.y = c; res.pos.y = 0;
+
+	return res;
+}
+
+void
+tformsetangle(Tform *t, coord angle) {       
+        coord c = cosc(angle);
+        coord s = sinc(angle);
+	t->col1.x = c; t->col2.x = -s;
+	t->col1.y = s; t->col2.y = c;
+}
+
+int
+texcmp(const Texture **a, const Texture **b) {
+	// FIXME: is this possible:
+	if(!a || !b)
+		return (a ? 1 : 0) - (b ? 1 : 0);
+
+	return strcmp((*a)->name, (*b)->name);
+}
+
+uint32_t
+topow2(uint32_t v) {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        return ++v;
 }
 
 int main(int argc, char **argv)
@@ -1000,23 +977,23 @@ int main(int argc, char **argv)
                 beginscene();
 
                 batch_bind_texture(tex->handle);
-		batch_texcoord_pointer(tex->coords);
+		batch.texcoords = tex->coords;
                 Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
                         batch.tform = p[i].t;
                         batch_draw_rect(&p[i].s, 0);
                 }
 
-		batch_texcoord_pointer(tex->coords);
+		batch.texcoords = tex->coords;
                 mouse.t.pos = input.mouse.screenabs;
                 batch.tform = mouse.t;
                 batch_draw_rect(&mouse.s, 0);
 
-		batch_texcoord_pointer(tex->coords);
+		batch.texcoords = tex->coords;
                 batch.tform = ball.t;
                 batch_draw_rect(&ball.s, 0);
 
-                batch_vertex_pointer(line);
+                batch.vertices = line;
                 batch.tform = tformidentity;
                 batch_draw_arrays(GL_LINES, 0, LENGTH(line));
 
