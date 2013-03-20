@@ -64,8 +64,6 @@ typedef float coord;
 #define PRESSING_KEY(key) (input.keyboard.pressed[key] && input.keyboard.changed[key])
 #define PRESSING_BTN(btn) (input.mouse.pressed[btn] && input.mouse.changed[btn])
 
-#define LOG_ERROR(fmt, ...) rr_error(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
-
 enum { BATCH_VERTS = 16384 };
 enum { SDL_MAX_BUTTONS = 255 };
 enum { Diagonal, Vertical, NoneBase, Horizontal }; /* aspect base */
@@ -167,19 +165,17 @@ typedef struct {
 /* function declarations */
 static void sleepc(clock_t iv);
 static uint32_t topow2(uint32_t v);
-static void rr_error(const char *file, int line, const char *function, const char *format, ...);
+static Tform tformfromvec2(const Vec2 v);
+static void tformsetangle(Tform *t, coord angle);
 
 static void arrayresize(Array *array, size_t nmemb);
 static size_t arraypush(Array *array, void *src);
-// removes element at index
-// moves last element to removed element
-// returns index of moved element or/and size of resized array
+static size_t arrayflipremove(Array *array, size_t index);
 static size_t arrayremove(Array *array, size_t index);
-static size_t arrayremove2(Array *array, size_t index);
 static void arrayfree(Array *array);
 
 static SDL_Surface *formatimg(SDL_Surface *src);
-static Texture *rr_loadrrtex(const char *path);
+static Texture *loadtexstruct(const char *path);
 static unsigned int loadtex(const char *path);
 static unsigned int maketex(SDL_Surface *surface);
 static SDL_Surface *pow2img(SDL_Surface *src);
@@ -190,8 +186,8 @@ static int strtexcmp(const char *a, const Texture **b);
 static int loadatlas(Array *map, const char *spc, const char *img);
 static Texture *gettex(Array *map, const char *name);
 static Texture *findtex(Array *map, const char *name);
-static Texture *rr_findntex(Array *map, size_t nel, const char *name);
-static void rr_freemaptex(Array *map);
+static Texture *findntex(Array *map, size_t nel, const char *name);
+static void freetexmap(Array *map);
 
 static void batch_bind_texture(GLuint texture);
 static void batch_color_pointer(Color *pointer);
@@ -283,7 +279,7 @@ size_t arraypush(Array *array, void *src)
 // removes element at index
 // moves last element to removed element
 // returns index of moved element or/and size of resized array
-size_t arrayremove(Array *array, size_t index)
+size_t arrayflipremove(Array *array, size_t index)
 {
         size_t last = array->nmemb - 1;
         if(last != index) {
@@ -296,7 +292,7 @@ size_t arrayremove(Array *array, size_t index)
         return array->nmemb;
 }
 
-size_t arrayremove2(Array *array, size_t index)
+size_t arrayremove(Array *array, size_t index)
 {
         char *ptr = array->ptr;
         ptr += index * array->size;
@@ -310,15 +306,6 @@ void arrayfree(Array *array)
         free(array->ptr);
 }
 
-void rr_error(const char *file, int line, const char *function, const char *format, ...) {
-	va_list argp;
-	fprintf(stderr, "%s: In `%s`:\n%s:%d: runtime error: ", file, function, file, line);
-	va_start(argp, format);
-	vfprintf(stderr, format, argp);
-	va_end(argp);
-	fprintf(stderr, "\n");
-}
-
 uint32_t topow2(uint32_t v)
 {
         v--;
@@ -330,8 +317,7 @@ uint32_t topow2(uint32_t v)
         return ++v;
 }
 
-static void rr_tform_set_angle(Tform *t,
-                coord angle)
+void tformsetangle(Tform *t, coord angle)
 {       
         coord c = cosc(angle);
         coord s = sinc(angle);
@@ -339,7 +325,7 @@ static void rr_tform_set_angle(Tform *t,
 	t->col1.y = s; t->col2.y = c;
 }
 
-static Tform rr_tform_from_vec2(const Vec2 v)
+Tform tformfromvec2(const Vec2 v)
 {       
         Tform res;
         coord len = VEC2LEN(v);
@@ -357,7 +343,7 @@ SDL_Surface *formatimg(SDL_Surface *src)
         return SDL_ConvertSurface(src, &screen.format, SDL_SWSURFACE);
 }
 
-Texture *rr_loadrrtex(const char *path)
+Texture *loadtexstruct(const char *path)
 {
 	Texture *tex = NULL;
         SDL_Surface *orig = NULL;
@@ -561,7 +547,7 @@ int loadatlas(Array *map, const char *spec, const char *image)
         int ntex;
         for(ntex = 0; (tex = specline(map, specfile)); ) {
 		tex->handle = atlas;
-		dup = rr_findntex(map, nprev, tex->name);
+		dup = findntex(map, nprev, tex->name);
 		// Ignore this line on duplicate, or we could:
 		// memset(dup, tex,
 		//        sizeof(Texture) - sizeof(tex->name));
@@ -598,7 +584,7 @@ Texture *gettex(Array *map, const char *name)
                 return tex;
 
         printf("not found: %s, loading\n", name);
-	tex = rr_loadrrtex(name);
+	tex = loadtexstruct(name);
         arraypush(map, &tex);
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);
@@ -609,10 +595,10 @@ Texture *findtex(Array *map, const char *name)
 {
 	if(!map || !name)
 		return NULL;
-	return rr_findntex(map, map->nmemb, name);
+	return findntex(map, map->nmemb, name);
 }
 
-Texture *rr_findntex(Array *map, size_t nel, const char *name)
+Texture *findntex(Array *map, size_t nel, const char *name)
 {
 	if(!map || !name)
 		return NULL;
@@ -624,7 +610,7 @@ Texture *rr_findntex(Array *map, size_t nel, const char *name)
 	return match ? *match : NULL;
 }
 
-void rr_freemaptex(Array *map)
+void freetexmap(Array *map)
 {
         Texture **tex = map->ptr;
         for(size_t i = 0; i < map->nmemb; i++) {
@@ -664,7 +650,7 @@ void batch_draw_arrays(GLenum mode, GLint first, GLsizei count)
 {
         unsigned int i;
         if(count > BATCH_VERTS) {
-                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
+                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
                 return;
         }
         if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
@@ -693,7 +679,7 @@ void batch_draw_elements(GLenum mode, GLsizei count, const unsigned int *indices
 {
         unsigned int i;
         if(count > BATCH_VERTS) {
-                LOG_ERROR("count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
+                fprintf(stderr, "count: %d > BATCH_VERTS: %d", count, BATCH_VERTS);
                 return;
         }
         if(batch.mode != mode || batch.array.count + count > BATCH_VERTS) {
@@ -1038,7 +1024,7 @@ int main(int argc, char **argv)
                 endframe();
         }
 
-        rr_freemaptex(&texmap);
+        freetexmap(&texmap);
 
         SDL_Quit();
         return 0;
