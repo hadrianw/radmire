@@ -1,10 +1,11 @@
 # *nix
-GLLIBS = -lgl -lglu
+GLLIBS = -lGLU -lGL
+PLATFORMLIBS = -lm
 
 # Win
 #GLLIBS = -lopengl32 -lglu32
 #PLATFORMFLAGS = -DNO_STDIO_REDIRECT
-#PLATFORMLIBS = -lmingw32 -lgdi32 -lwinmm
+#PLATFORMLIBS = -static -lmingw32 -lgdi32 -lwinmm
 #PLATFORM = win/SDL_win32_main.c
 
 # OSX:
@@ -12,7 +13,7 @@ GLLIBS = -lgl -lglu
 
 # includes and libs
 INCS = 
-LIBS = -static -lSDL ${PLATFORMLIBS} ${GLLIBS} -lpng -lz
+LIBS = -lSDL ${PLATFORMLIBS} ${GLLIBS} -lpng -lz
 
 # flags
 CPPFLAGS = ${PLATFORMFLAGS}
