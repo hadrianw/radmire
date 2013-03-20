@@ -1,20 +1,21 @@
+# *nix
+GLLIBS = -lgl -lglu
+
+# Win
+#GLLIBS = -lopengl32 -lglu32
+#PLATFORMFLAGS = -DNO_STDIO_REDIRECT
+#PLATFORMLIBS = -lmingw32 -lgdi32 -lwinmm
+#PLATFORM = win/SDL_win32_main.c
+
+# OSX:
+#GLLIBS = -framework OpenGL
+
 # includes and libs
-INCS = `pkg-config --cflags sdl libpng`
-LIBS = `pkg-config --libs sdl gl glu libpng` -lphysfs
-
-#### Win
-INCS = -I../SDL/include/ -DNO_STDIO_REDIRECT \
-       -I../physfs/
-LIBS = -lmingw32 \
-       -L../SDL/lib/ -lSDLmain -lSDL -lopengl32 -lglu32 \
-       -lpng -L../physfs/ -lphysfs -lz
-PLATFORM = win/SDL_win32_main.c
-
-#### OSX:
-LIBS = `pkg-config --libs sdl libpng` -lphysfs -framework OpenGL
+INCS = 
+LIBS = -static -lSDL ${PLATFORMLIBS} ${GLLIBS} -lpng -lz
 
 # flags
-CPPFLAGS = #-D
+CPPFLAGS = ${PLATFORMFLAGS}
 #CFLAGS   = -std=c99 -pedantic -Os -Wall ${INCS} ${CPPFLAGS}
 #LDFLAGS  = -s ${LIBS}
 CFLAGS   = -std=c99 -pedantic -O0 -g -Wall ${INCS} ${CPPFLAGS}

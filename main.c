@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <math.h>
-#include <physfs.h>
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
 #include <stdarg.h>
@@ -10,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "contrib/physfsrwops.h"
 #include "contrib/SDL_image.h"
 
 /* macros */
@@ -180,7 +178,6 @@ static size_t arrayremove(Array *array, size_t index);
 static size_t arrayremove2(Array *array, size_t index);
 static void arrayfree(Array *array);
 
-static SDL_Surface *loadimg(const char *path);
 static SDL_Surface *formatimg(SDL_Surface *src);
 static Texture *rr_loadrrtex(const char *path);
 static unsigned int loadtex(const char *path);
@@ -355,16 +352,6 @@ static Tform rr_tform_from_vec2(const Vec2 v)
 	return res;
 }
 
-SDL_Surface *loadimg(const char *path)
-{
-        SDL_RWops *rw;
-
-        rw = PHYSFSRWOPS_openRead(path);
-        if(!rw)
-                return NULL;
-        return IMG_Load_RW(rw, 1);
-}
-
 SDL_Surface *formatimg(SDL_Surface *src)
 {
         return SDL_ConvertSurface(src, &screen.format, SDL_SWSURFACE);
@@ -378,7 +365,7 @@ Texture *rr_loadrrtex(const char *path)
         SDL_Surface *conv = NULL;
         unsigned int handle = 0;
 
-        orig = loadimg(path);
+        orig = IMG_Load(path);
         if(!orig)
                 goto out_orig;
 
@@ -426,7 +413,7 @@ unsigned int loadtex(const char *path)
         SDL_Surface *orig = NULL;
         SDL_Surface *conv = NULL;
 
-        orig = loadimg(path);
+        orig = IMG_Load(path);
         if(!orig)
                 goto out_orig;
 
@@ -957,13 +944,8 @@ void endframe(void)
 
 int init(int argc, char **argv)
 {
-	if(!PHYSFS_init(argv[0]))
-                goto out;
-	if(!PHYSFS_setSaneConfig("hawski", "rr", "zip", 0, 0))
-                goto out_physfs;
-
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
-                goto out_physfs;
+                goto out;
         if(resize(1024, 768, 32, false, Diagonal))
         //if(setfullscreen(Diagonal))
                 goto out_sdl;
@@ -989,8 +971,6 @@ int init(int argc, char **argv)
 
 out_sdl:
         SDL_Quit();
-out_physfs:
-        PHYSFS_deinit();
 out:
         return -2;
 }
@@ -1061,7 +1041,6 @@ int main(int argc, char **argv)
         rr_freemaptex(&texmap);
 
         SDL_Quit();
-        PHYSFS_deinit();
         return 0;
 }
 

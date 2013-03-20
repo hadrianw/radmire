@@ -3,10 +3,9 @@ include config.mk
 all: game-c
 
 include contrib/SDL_image.mk
-contrib/physfsrwops.o: contrib/physfsrwops.h
 
 SRC = main.c \
-      ${SDLIMAGESRC} contrib/physfsrwops.c \
+      ${SDLIMAGESRC} \
       ${PLATFORM}
 OBJ = ${SRC:.c=.o}
 
@@ -15,7 +14,7 @@ game-c: ${OBJ}
 	@${CC} -o $@ $+ ${LDFLAGS}
 
 ${OBJ}: config.mk
-main.o: ${SDLIMAGEDEP} contrib/physfsrwops.h
+main.o: ${SDLIMAGEDEP}
 
 .c.o:
 	@echo CC -c $<
