@@ -143,6 +143,11 @@ typedef struct {
 	int bpp;
 	SDL_PixelFormat format;
 	bool full;
+	struct {
+		int width;
+		int height;
+		int bpp;
+	} best;
 
 	Tform tform;
 	int base;
@@ -184,13 +189,14 @@ static SDL_Surface *formatimg(SDL_Surface *src);
 static void freetex(Texture *tex);
 static void freetexmap(Array *map);
 static Texture *gettex(Array *map, const char *name);
+static void glinit();
 static int init(int argc, char **argv);
 static int loadatlas(Array *map, const char *spc, const char *img);
 static unsigned int loadtex(const char *path);
 static Texture *loadtexstruct(const char *path);
 static unsigned int maketex(SDL_Surface *surface);
 static SDL_Surface *pow2img(SDL_Surface *src);
-static int resize(int width, int height, int bpp, bool fullscreen, int base);
+static int resize(int width, int height, bool fullscreen, int base);
 static void setbasediagonal(int width, int height);
 static void setbasehorizontal(int width, int height);
 static void setbasenone(int width, int height);
@@ -442,9 +448,8 @@ beginframe(void) {
                         input.keyboard.changed[input.event.key.keysym.sym] = true;
                         break;
                 case SDL_VIDEORESIZE:
-                        resize(input.event.resize.w,
-                                        input.event.resize.h, screen.bpp,
-                                        screen.full, screen.base);
+                        resize(input.event.resize.w, input.event.resize.h,
+                               screen.full, screen.base);
                         break;
                 }
         }
@@ -547,16 +552,8 @@ gettex(Array *map, const char *name) {
         return tex;
 }
 
-int
-init(int argc, char **argv) {
-        if(SDL_Init(SDL_INIT_VIDEO) < 0)
-                goto out;
-        if(resize(1024, 768, 32, false, Diagonal))
-        //if(setfullscreen(Diagonal))
-                goto out_sdl;
-
-        SDL_WM_SetCaption("Radmire", NULL);
-        SDL_EnableKeyRepeat(0, 0);
+void
+glinit() {
         glDisable(GL_CULL_FACE);
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
@@ -566,6 +563,26 @@ init(int argc, char **argv) {
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
         batch_init();
+}
+
+int
+init(int argc, char **argv) {
+        if(SDL_Init(SDL_INIT_VIDEO) < 0)
+                goto out;
+
+        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
+        screen.best.width = vi->current_w;
+	screen.best.height = vi->current_h;
+	screen.best.bpp = vi->vfmt->BitsPerPixel;
+
+        if(resize(1024, 768, false, Diagonal))
+        //if(setfullscreen(Diagonal))
+                goto out_sdl;
+
+        SDL_WM_SetCaption("Radmire", NULL);
+        SDL_EnableKeyRepeat(0, 0);
+
+	glinit();
 
         timer.step = 1 / timer.fps;
         timer.clockstep = CLOCKS_PER_SEC / timer.fps;
@@ -751,11 +768,11 @@ pow2img(SDL_Surface *src) {
 }
 
 int
-resize(int width, int height, int bpp, bool fullscreen, int base) {
-        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, bpp / 4);
+resize(int width, int height, bool fullscreen, int base) {
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, screen.best.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, screen.best.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, screen.best.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, screen.best.bpp / 4);
 
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
@@ -770,24 +787,26 @@ resize(int width, int height, int bpp, bool fullscreen, int base) {
         if(fullscreen)
                 flags |= SDL_FULLSCREEN;
 
-        if(!SDL_SetVideoMode(width, height, bpp, flags))
+        if(!SDL_SetVideoMode(width, height, screen.best.bpp, flags))
                 return -1;
 
-        screen.format.BitsPerPixel = bpp;
-        screen.format.BytesPerPixel = bpp / 8;
-        screen.format.Rshift = bpp / 4 * COLOR_SHIFT(3);
-        screen.format.Gshift = bpp / 4 * COLOR_SHIFT(2);
-        screen.format.Bshift = bpp / 4 * COLOR_SHIFT(1);
-        screen.format.Ashift = bpp / 4 * COLOR_SHIFT(0);
-        screen.format.Rmask = ((1 <<  bpp / 4) - 1) << screen.format.Rshift;
-        screen.format.Gmask = ((1 <<  bpp / 4) - 1) << screen.format.Gshift;
-        screen.format.Bmask = ((1 <<  bpp / 4) - 1) << screen.format.Bshift;
-        screen.format.Amask = ((1 <<  bpp / 4) - 1) << screen.format.Ashift;
+        screen.format.BitsPerPixel = screen.best.bpp;
+        screen.format.BytesPerPixel = screen.best.bpp / 8;
+        screen.format.Rshift = screen.best.bpp / 4 * COLOR_SHIFT(3);
+        screen.format.Gshift = screen.best.bpp / 4 * COLOR_SHIFT(2);
+        screen.format.Bshift = screen.best.bpp / 4 * COLOR_SHIFT(1);
+        screen.format.Ashift = screen.best.bpp / 4 * COLOR_SHIFT(0);
+        screen.format.Rmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Rshift;
+        screen.format.Gmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Gshift;
+        screen.format.Bmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Bshift;
+        screen.format.Amask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Ashift;
 
         screen.width = width;
         screen.height = height;
-        screen.bpp = bpp;
         screen.full = fullscreen;
+
+	if(fullscreen)
+		glinit();
 
         glViewport(0, 0, width, height);
  	setbase[base](width, height);
@@ -843,8 +862,7 @@ setbasevertical(int width, int height) {
 
 int
 setfullscreen(int base) {
-        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        return resize(vi->current_w, vi->current_h, vi->vfmt->BitsPerPixel, true, base);
+        return resize(screen.best.width, screen.best.height, true, base);
 }
 
 void
@@ -966,6 +984,10 @@ int main(int argc, char **argv)
                 beginframe();
                 if(input.keyboard.pressed[SDLK_ESCAPE])
                         running = false;
+		if(PRESSING_KEY(SDLK_f))
+			setfullscreen(Diagonal);
+		if(PRESSING_KEY(SDLK_w))
+			resize(800, 600, false, Diagonal);
                 if(input.mouse.changed[1] && input.mouse.pressed[1]) {
                         Object new = {
                                 tformidentity,
