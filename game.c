@@ -74,6 +74,11 @@ typedef struct {
 } Vec2;
 
 typedef struct {
+	int x;
+	int y;
+} Vec2i;
+
+typedef struct {
         Vec2 col1;
         Vec2 col2;
         Vec2 pos;
@@ -138,16 +143,12 @@ typedef struct {
 } Object;
 
 typedef struct {
-	int width;
-	int height;
+	Vec2i *size;
+	Vec2i winsize;
+	Vec2i fullsize;
 	int bpp;
 	SDL_PixelFormat format;
 	bool full;
-	struct {
-		int width;
-		int height;
-		int bpp;
-	} best;
 
 	Tform tform;
 	int base;
@@ -219,8 +220,6 @@ static Array objects = {
 };
 static bool running = false;
 static Screen screen = {
-	.width = -1,
-	.height = -1,
 	.bpp = -1,
 	.format = {
 		.alpha = 255
@@ -571,9 +570,21 @@ init(int argc, char **argv) {
                 goto out;
 
         const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        screen.best.width = vi->current_w;
-	screen.best.height = vi->current_h;
-	screen.best.bpp = vi->vfmt->BitsPerPixel;
+        screen.fullsize.x = vi->current_w;
+	screen.fullsize.y = vi->current_h;
+	screen.bpp = vi->vfmt->BitsPerPixel;
+	screen.size = &screen.winsize;
+
+        screen.format.BitsPerPixel = screen.bpp;
+        screen.format.BytesPerPixel = screen.bpp / 8;
+        screen.format.Rshift = screen.bpp / 4 * COLOR_SHIFT(3);
+        screen.format.Gshift = screen.bpp / 4 * COLOR_SHIFT(2);
+        screen.format.Bshift = screen.bpp / 4 * COLOR_SHIFT(1);
+        screen.format.Ashift = screen.bpp / 4 * COLOR_SHIFT(0);
+        screen.format.Rmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Rshift;
+        screen.format.Gmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Gshift;
+        screen.format.Bmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Bshift;
+        screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
 
         if(resize(1024, 768, false, Diagonal))
         //if(setfullscreen(Diagonal))
@@ -769,10 +780,11 @@ pow2img(SDL_Surface *src) {
 
 int
 resize(int width, int height, bool fullscreen, int base) {
-        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, screen.best.bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, screen.best.bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, screen.best.bpp / 4);
-        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, screen.best.bpp / 4);
+	printf("%dx%d@%d %d\n", width, height, screen.bpp);
+        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, screen.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, screen.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, screen.bpp / 4);
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, screen.bpp / 4);
 
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
@@ -787,22 +799,11 @@ resize(int width, int height, bool fullscreen, int base) {
         if(fullscreen)
                 flags |= SDL_FULLSCREEN;
 
-        if(!SDL_SetVideoMode(width, height, screen.best.bpp, flags))
+        if(!SDL_SetVideoMode(width, height, screen.bpp, flags))
                 return -1;
 
-        screen.format.BitsPerPixel = screen.best.bpp;
-        screen.format.BytesPerPixel = screen.best.bpp / 8;
-        screen.format.Rshift = screen.best.bpp / 4 * COLOR_SHIFT(3);
-        screen.format.Gshift = screen.best.bpp / 4 * COLOR_SHIFT(2);
-        screen.format.Bshift = screen.best.bpp / 4 * COLOR_SHIFT(1);
-        screen.format.Ashift = screen.best.bpp / 4 * COLOR_SHIFT(0);
-        screen.format.Rmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Rshift;
-        screen.format.Gmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Gshift;
-        screen.format.Bmask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Bshift;
-        screen.format.Amask = ((1 <<  screen.best.bpp / 4) - 1) << screen.format.Ashift;
-
-        screen.width = width;
-        screen.height = height;
+        screen.size->x = width;
+        screen.size->y = height;
         screen.full = fullscreen;
 
 	if(fullscreen)
@@ -861,8 +862,15 @@ setbasevertical(int width, int height) {
 }
 
 int
+setwindowed(int base) {
+	screen.size = &screen.winsize;
+        return resize(screen.winsize.x, screen.winsize.y, false, base);
+}
+
+int
 setfullscreen(int base) {
-        return resize(screen.best.width, screen.best.height, true, base);
+	screen.size = &screen.fullsize;
+        return resize(screen.fullsize.x, screen.fullsize.y, true, base);
 }
 
 void
@@ -987,7 +995,8 @@ int main(int argc, char **argv)
 		if(PRESSING_KEY(SDLK_f))
 			setfullscreen(Diagonal);
 		if(PRESSING_KEY(SDLK_w))
-			resize(800, 600, false, Diagonal);
+			setwindowed(Diagonal);
+			//resize(800, 600, false, Diagonal);
                 if(input.mouse.changed[1] && input.mouse.pressed[1]) {
                         Object new = {
                                 tformidentity,
