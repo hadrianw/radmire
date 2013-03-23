@@ -191,7 +191,7 @@ static void freetex(Texture *tex);
 static void freetexmap(Array *map);
 static Texture *gettex(Array *map, const char *name);
 static void glinit();
-static int init(int argc, char **argv);
+static int init();
 static int loadatlas(Array *map, const char *spc, const char *img);
 static unsigned int loadtex(const char *path);
 static Texture *loadtexstruct(const char *path);
@@ -215,12 +215,9 @@ static uint32_t topow2(uint32_t v);
 static Batch batch = { .mode = GL_QUADS };
 static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
 static Input input;
-static Array objects = {
-        .size = sizeof(Object)
-};
+static Array objects = { .size = sizeof(Object) };
 static bool running = false;
 static Screen screen = {
-	.bpp = -1,
 	.format = {
 		.alpha = 255
 	},
@@ -268,6 +265,9 @@ arrayflipremove(Array *array, size_t index) {
 void
 arrayfree(Array *array) {
         free(array->ptr);
+        array->ptr = 0;
+        array->nmemb = 0;
+        array->nalloc = 0;
 }
 
 size_t
@@ -422,21 +422,25 @@ beginframe(void) {
                 switch(input.event.type) {
                 case SDL_QUIT:
                         running = false;
-                        return;
+                        break;
                 case SDL_MOUSEMOTION:
                         input.mouse.rel.x += input.event.motion.xrel;
                         input.mouse.rel.y += input.event.motion.yrel;
                         input.mouse.abs.x = input.event.motion.x;
                         input.mouse.abs.y = input.event.motion.y;
+			input.mouse.screenabs = TFORMVEC2(screen.tform,
+					input.mouse.abs); 
+			input.mouse.screenrel = TFORMRVEC2(screen.tform,
+					input.mouse.rel); 
                         input.mouse.moved = true;
                         break;
                 case SDL_MOUSEBUTTONDOWN:
-                        input.mouse.pressed[input.event.button.button-1] = true;
-                        input.mouse.changed[input.event.button.button-1] = true;
+                        input.mouse.pressed[input.event.button.button - 1] = true;
+                        input.mouse.changed[input.event.button.button - 1] = true;
                         break;
                 case SDL_MOUSEBUTTONUP:
-                        input.mouse.pressed[input.event.button.button-1] = false;
-                        input.mouse.changed[input.event.button.button-1] = true;
+                        input.mouse.pressed[input.event.button.button - 1] = false;
+                        input.mouse.changed[input.event.button.button - 1] = true;
                         break;
                 case SDL_KEYDOWN:
                         input.keyboard.pressed[input.event.key.keysym.sym] = true;
@@ -452,10 +456,6 @@ beginframe(void) {
                         break;
                 }
         }
-        input.mouse.screenabs = TFORMVEC2(screen.tform,
-                        input.mouse.abs); 
-        input.mouse.screenrel = TFORMRVEC2(screen.tform,
-                        input.mouse.rel); 
 }
 
 void
@@ -529,17 +529,14 @@ freetexmap(Array *map) {
                 glDeleteTextures(1, &tex[i]->handle);
                 freetex(tex[i]);
         }
-        free(map->ptr);
-        map->ptr = 0;
-        map->nmemb = 0;
-        map->nalloc = 0;
+        arrayfree(map);
 }
 
 Texture*
 gettex(Array *map, const char *name) {
 	if(!map || !name)
 		return NULL;
-	Texture * tex = findtex(map, name);
+	Texture *tex = findtex(map, name);
         if(tex)
                 return tex;
 
@@ -565,7 +562,7 @@ glinit() {
 }
 
 int
-init(int argc, char **argv) {
+init() {
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
                 goto out;
 
@@ -587,7 +584,6 @@ init(int argc, char **argv) {
         screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
 
         if(resize(1024, 768, false, Diagonal))
-        //if(setfullscreen(Diagonal))
                 goto out_sdl;
 
         SDL_WM_SetCaption("Radmire", NULL);
@@ -780,7 +776,7 @@ pow2img(SDL_Surface *src) {
 
 int
 resize(int width, int height, bool fullscreen, int base) {
-	printf("%dx%d@%d %d\n", width, height, screen.bpp);
+	printf("%dx%d@%d\n", width, height, screen.bpp);
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, screen.bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, screen.bpp / 4);
         SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, screen.bpp / 4);
@@ -964,11 +960,10 @@ topow2(uint32_t v) {
         return ++v;
 }
 
-int main(int argc, char **argv)
-{
-        if(init(argc, argv)) {
+int
+main(int argc, char **argv) {
+        if(init())
                 return -1;
-        }
 
 	loadatlas(&texmap, "atlas/target.atlas", "atlas/target.png");
 	Texture *tex = gettex(&texmap, "ball.png");
@@ -996,8 +991,7 @@ int main(int argc, char **argv)
 			setfullscreen(Diagonal);
 		if(PRESSING_KEY(SDLK_w))
 			setwindowed(Diagonal);
-			//resize(800, 600, false, Diagonal);
-                if(input.mouse.changed[1] && input.mouse.pressed[1]) {
+                if(PRESSING_BTN(1)) {
                         Object new = {
                                 tformidentity,
                                 {50, 50}
