@@ -42,6 +42,9 @@ typedef float coord;
 #define TFORMRVEC2(T, V) \
 	(Vec2){ (T).col1.x * (V).x + (T).col2.x * (V).y, \
 	        (T).col1.y * (V).x + (T).col2.y * (V).y }
+#define TFORMT(T) \
+	(Tform){ { (T).col1.x, (T).col2.x}, \
+	         { (T).col1.y, (T).col2.y} }
 #define TFORMMUL(A, B) \
 	(Tform){ { (A).col1.x * (B).col1.x + (A).col2.x * (B).col1.y, \
 	           (A).col1.y * (B).col1.x + (A).col2.y * (B).col1.y }, \
@@ -932,6 +935,17 @@ tformfromvec2(const Vec2 v) {
 	return res;
 }
 
+Tform
+tforminv(Tform t) {
+	coord a = t.col1.x, b = t.col2.x, c = t.col1.y, d = t.col2.y;
+	coord det = a * d - b * c;
+	if(det != 0.0f)
+		det = 1.0f / det;
+
+	return (Tform){ { det * d, -det * b },
+	                {-det * c,  det * a } };
+}
+
 void
 tformsetangle(Tform *t, coord angle) {       
         coord c = cosc(angle);
@@ -979,24 +993,46 @@ main(int argc, char **argv) {
         };
         
         Vec2 line[] = {
-                { -100, -70 },
+                { -100, -75 },
                 { 100, -75 }
+	};
+
+        Vec2 cross[] = {
+                { -5, 5 },
+                { 5, -5 },
+                { -5, -5 },
+                { 5, 5 }
         };
+
+	Tform world = tformidentity;
+	Tform angle = tformidentity;
+	Tform walk = tformidentity;
+	coord dist = 0;
 
         while(running) {
                 beginframe();
+
+		walk.pos.x = -dist;
+		tformsetangle(&angle, input.mouse.screenabs.y * 0.01f);
+		world = TFORMMUL(angle, walk);
+		walk.pos.x = dist;
+
                 if(input.keyboard.pressed[SDLK_ESCAPE])
                         running = false;
 		if(PRESSING_KEY(SDLK_f))
 			setfullscreen(Diagonal);
 		if(PRESSING_KEY(SDLK_w))
 			setwindowed(Diagonal);
+                if(input.keyboard.pressed[SDLK_RIGHT])
+			dist++;
+                if(input.keyboard.pressed[SDLK_LEFT])
+			dist--;
                 if(PRESSING_BTN(1)) {
                         Object new = {
                                 tformidentity,
                                 {50, 50}
                         };
-                        new.t.pos = input.mouse.screenabs;
+                        new.t.pos = VEC2PLUS(TFORMVEC2(tforminv(TFORMT(world)), input.mouse.screenabs), walk.pos);
                         arraypush(&objects, &new);
                 }
                 beginscene();
@@ -1005,7 +1041,7 @@ main(int argc, char **argv) {
 		batch.texcoords = tex->coords;
                 Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
-                        batch.tform = p[i].t;
+                        batch.tform = TFORMMUL(world, p[i].t);
                         batch_draw_rect(&p[i].s, 0);
                 }
 
@@ -1015,12 +1051,16 @@ main(int argc, char **argv) {
                 batch_draw_rect(&mouse.s, 0);
 
 		batch.texcoords = tex->coords;
-                batch.tform = ball.t;
+                batch.tform = TFORMMUL(world, ball.t);
                 batch_draw_rect(&ball.s, 0);
 
                 batch.vertices = line;
-                batch.tform = tformidentity;
+                batch.tform = world;
                 batch_draw_arrays(GL_LINES, 0, LENGTH(line));
+
+                batch.vertices = cross;
+                batch.tform = TFORMMUL(world, walk);
+                batch_draw_arrays(GL_LINES, 0, LENGTH(cross));
 
                 endscene();
                 endframe();
