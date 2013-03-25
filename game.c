@@ -254,7 +254,7 @@ static const Tform tformidentity = {
         {0.0f, 1.0f},
         {0.0f, 0.0f}
 };
-static Timer timer = { .fps = 60 };
+static Timer timer = { .fps = 50 };
 static const Vec2 vec2zero;
 
 /* function implementations */
@@ -997,6 +997,12 @@ main(int argc, char **argv) {
 
 	loadatlas(&texmap, "atlas/target.atlas", "atlas/target.png");
 	Texture *tex = gettex(&texmap, "ball.png");
+	Texture *streettex = gettex(&texmap, "street.png");
+
+	Texture *handstex = gettex(&texmap, "hands.png");
+	Vec2 handssiz = {287 / 8, 142 / 8};
+	Texture *legstex = gettex(&texmap, "legs.png");
+	Vec2 legssiz = {162 / 8, 494 / 8};
 
         Object mouse = {
                 tformidentity,
@@ -1005,7 +1011,7 @@ main(int argc, char **argv) {
         
         Object ball = {
                 tformidentity,
-                { 32, 32 }
+                { 400, 250 }
         };
         
         Vec2 line[] = {
@@ -1014,10 +1020,13 @@ main(int argc, char **argv) {
 	};
 
         Vec2 cross[] = {
-                { -5, 5 },
-                { 5, -5 },
-                { -5, -5 },
-                { 5, 5 }
+                {-5,  5},
+                { 5, -5},
+                {-5, -5},
+                { 5,  5},
+
+		{0, 0},
+		{400, 0}
         };
 
 	Tform back = tformidentity;
@@ -1051,7 +1060,7 @@ main(int argc, char **argv) {
 		tformsetangle(&angle, LIMIT(input.mouse.screenabs.y * 0.02f, -M_PI_2, M_PI_2));
 		player = TFORMMUL(player, angle);
 
-		real scale = MAX(input.mouse.screenabs.x * 0.01f, 0.25f);
+		real scale = LIMIT((screen.right - input.mouse.screenabs.x) * 0.01f, 0.25f, 1.5f);
 		tformsetscale(&zoom, (Vec2){scale, scale});
 		camera = TFORMMUL( back, TFORMMUL(zoom, TFORMT(tforminv(player))) );
 
@@ -1065,6 +1074,11 @@ main(int argc, char **argv) {
                 }
                 beginscene();
 
+                batch_bind_texture(streettex->handle);
+		batch.texcoords = streettex->coords;
+                batch.tform = TFORMMUL(camera, ball.t);
+                batch_draw_rect(&ball.s, 0);
+
                 batch_bind_texture(tex->handle);
 		batch.texcoords = tex->coords;
                 Object *p = objects.ptr;
@@ -1073,10 +1087,19 @@ main(int argc, char **argv) {
                         batch_draw_rect(&p[i].s, 0);
                 }
 
-		batch.texcoords = tex->coords;
-                batch.tform = TFORMMUL(camera, ball.t);
-                batch_draw_rect(&ball.s, 0);
+                batch_bind_texture(legstex->handle);
+		batch.texcoords = legstex->coords;
+		Tform legst = tformidentity;
+		legst.pos = pos;
+                batch.tform = TFORMMUL(camera, legst);
+		batch_draw_rect(&legssiz, &(Vec2){0.4f, -0.05f});
 
+                batch_bind_texture(handstex->handle);
+		batch.texcoords = handstex->coords;
+                batch.tform = TFORMMUL(camera, player);
+		batch_draw_rect(&handssiz, &(Vec2){0.25f, 0.65f});
+
+                batch_bind_texture(tex->handle);
 		batch.texcoords = tex->coords;
                 mouse.t.pos = input.mouse.screenabs;
                 batch.tform = mouse.t;
