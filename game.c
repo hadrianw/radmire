@@ -44,7 +44,8 @@ typedef float coord;
 	        (T).col1.y * (V).x + (T).col2.y * (V).y }
 #define TFORMT(T) \
 	(Tform){ { (T).col1.x, (T).col2.x}, \
-	         { (T).col1.y, (T).col2.y} }
+	         { (T).col1.y, (T).col2.y}, \
+	         (T).pos }
 #define TFORMMUL(A, B) \
 	(Tform){ { (A).col1.x * (B).col1.x + (A).col2.x * (B).col1.y, \
 	           (A).col1.y * (B).col1.x + (A).col2.y * (B).col1.y }, \
@@ -940,13 +941,14 @@ tformfromvec2(const Vec2 v) {
 
 Tform
 tforminv(Tform t) {
-	coord a = t.col1.x, b = t.col2.x, c = t.col1.y, d = t.col2.y;
-	coord det = a * d - b * c;
+	coord det = t.col1.x * t.col2.y - t.col1.y * t.col2.x;
 	if(det != 0.0f)
 		det = 1.0f / det;
 
-	return (Tform){ { det * d, -det * b },
-	                {-det * c,  det * a } };
+	return (Tform){ { det * t.col2.y, -det * t.col2.x },
+	                {-det * t.col1.y,  det * t.col1.x },
+	                { det * (t.pos.y * t.col2.x - t.col2.y * t.pos.x),
+	                 -det * (t.pos.y * t.col1.x - t.col1.y * t.pos.x) } };
 }
 
 void
@@ -1035,7 +1037,7 @@ main(int argc, char **argv) {
                                 tformidentity,
                                 {50, 50}
                         };
-                        new.t.pos = VEC2PLUS(TFORMVEC2(tforminv(TFORMT(world)), input.mouse.screenabs), walk.pos);
+                        new.t.pos = TFORMVEC2(TFORMT(tforminv(world)), input.mouse.screenabs);
                         arraypush(&objects, &new);
                 }
                 beginscene();
@@ -1049,13 +1051,13 @@ main(int argc, char **argv) {
                 }
 
 		batch.texcoords = tex->coords;
+                batch.tform = TFORMMUL(world, ball.t);
+                batch_draw_rect(&ball.s, 0);
+
+		batch.texcoords = tex->coords;
                 mouse.t.pos = input.mouse.screenabs;
                 batch.tform = mouse.t;
                 batch_draw_rect(&mouse.s, 0);
-
-		batch.texcoords = tex->coords;
-                batch.tform = TFORMMUL(world, ball.t);
-                batch_draw_rect(&ball.s, 0);
 
                 batch.vertices = line;
                 batch.tform = world;
