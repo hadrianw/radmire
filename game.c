@@ -12,24 +12,24 @@
 #include "contrib/SDL_image.h"
 
 /* macros */
-typedef double coord;
-#define GL_COORD GL_DOUBLE
-#define sqrtc sqrt
-#define sinc sin
-#define cosc cos
-#define asinc asin
-#define acosc acos
-#define atan2c atan2
+typedef double real;
+#define GL_REAL GL_DOUBLE
+#define sqrtr sqrt
+#define sinr sin
+#define cosr cos
+#define asinr asin
+#define acosr acos
+#define atan2r atan2
 
 /*
-typedef float coord;
-#define GL_COORD GL_FLOAT
-#define sqrtc srtf
-#define sinc sinf
-#define cosc cosf
-#define asinc asinf
-#define acosc acosf
-#define atan2c atan2f
+typedef float real;
+#define GL_REAL GL_FLOAT
+#define sqrtr srtf
+#define sinr sinf
+#define cosr cosf
+#define asinr asinf
+#define acosr acosf
+#define atan2r atan2f
 */
 
 #define M_PI            3.14159265358979323846
@@ -38,7 +38,7 @@ typedef float coord;
 #define VEC2PLUS(V1, V2)  (Vec2){(V1).x + (V2).x, (V1).y + (V2).y}
 #define VEC2MINUS(V1, V2) (Vec2){(V1).x - (V2).x, (V1).y - (V2).y}
 #define VEC2SQLEN(V)      ((V).x * (V).x + (V).y * (V).y)
-#define VEC2LEN(V)        (sqrtc(VEC2SQLEN(V)))
+#define VEC2LEN(V)        (sqrtr(VEC2SQLEN(V)))
 #define TFORMVEC2(T, V) \
 	(Vec2){ (T).pos.x + (T).col1.x * (V).x + (T).col2.x * (V).y, \
 	        (T).pos.y + (T).col1.y * (V).x + (T).col2.y * (V).y }
@@ -77,8 +77,8 @@ enum { SDL_MAX_BUTTONS = 255 };
 enum { Diagonal, Vertical, NoneBase, Horizontal }; /* aspect base */
 
 typedef struct {
-        coord x;
-        coord y;
+        real x;
+        real y;
 } Vec2;
 
 typedef struct {
@@ -160,10 +160,10 @@ typedef struct {
 
 	Tform tform;
 	int base;
-	coord top;
-	coord left;
-	coord bottom;
-	coord right;
+	real top;
+	real left;
+	real bottom;
+	real right;
 } Screen;
 
 typedef struct {
@@ -220,7 +220,7 @@ static Texture *specline(Array *map, FILE *specfile);
 static int strtexcmp(const char *a, const Texture **b);
 static int texcmp(const Texture **a, const Texture **b);
 static Tform tformfromvec2(const Vec2 v);
-static void tformsetangle(Tform *t, coord angle);
+static void tformsetangle(Tform *t, real angle);
 static void tformsetscale(Tform *t, Vec2 v);
 static uint32_t topow2(uint32_t v);
 
@@ -405,8 +405,8 @@ batch_draw_rect(const Vec2 *size, const Vec2 *align) {
 
 void
 batch_flush() {
-        glVertexPointer(2, GL_COORD, 0, batch.array.vertices);
-        glTexCoordPointer(2, GL_COORD, 0, batch.array.texcoords);
+        glVertexPointer(2, GL_REAL, 0, batch.array.vertices);
+        glTexCoordPointer(2, GL_REAL, 0, batch.array.texcoords);
         glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch.array.colors);
 
         if(batch.mode < GL_TRIANGLES)
@@ -934,9 +934,9 @@ strtexcmp(const char *a, const Texture **b) {
 Tform
 tformfromvec2(const Vec2 v) {       
         Tform res;
-        coord len = VEC2LEN(v);
-        coord c = v.x / len;
-        coord s = v.y / len;
+        real len = VEC2LEN(v);
+        real c = v.x / len;
+        real s = v.y / len;
 
         res.col1.x = c; res.col2.x = -s; res.pos.x = len;
         res.col1.y = s; res.col2.y = c; res.pos.y = 0;
@@ -946,7 +946,7 @@ tformfromvec2(const Vec2 v) {
 
 Tform
 tforminv(Tform t) {
-	coord det = t.col1.x * t.col2.y - t.col1.y * t.col2.x;
+	real det = t.col1.x * t.col2.y - t.col1.y * t.col2.x;
 	if(det != 0.0f)
 		det = 1.0f / det;
 
@@ -957,9 +957,9 @@ tforminv(Tform t) {
 }
 
 void
-tformsetangle(Tform *t, coord angle) {
-        coord c = cosc(angle);
-        coord s = sinc(angle);
+tformsetangle(Tform *t, real angle) {
+        real c = cosr(angle);
+        real s = sinr(angle);
 	t->col1.x = c; t->col2.x = -s;
 	t->col1.y = s; t->col2.y = c;
 }
@@ -1051,7 +1051,7 @@ main(int argc, char **argv) {
 		tformsetangle(&angle, LIMIT(input.mouse.screenabs.y * 0.02f, -M_PI_2, M_PI_2));
 		player = TFORMMUL(player, angle);
 
-		coord scale = MAX(input.mouse.screenabs.x * 0.01f, 0.25f);
+		real scale = MAX(input.mouse.screenabs.x * 0.01f, 0.25f);
 		tformsetscale(&zoom, (Vec2){scale, scale});
 		camera = TFORMMUL( back, TFORMMUL(zoom, TFORMT(tforminv(player))) );
 
