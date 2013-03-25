@@ -171,6 +171,9 @@ typedef struct {
 	clock_t diff;
 } Timer;
 
+/* extern function declarations */
+extern Uint32 fullscreenflag(bool fullscreen);
+
 /* function declarations */
 static size_t arrayflipremove(Array *array, size_t index);
 static void arrayfree(Array *array);
@@ -206,6 +209,7 @@ static void setbasehorizontal(int width, int height);
 static void setbasenone(int width, int height);
 static void setbasevertical(int width, int height);
 static int setfullscreen(int base);
+static int setwindowed(int base);
 static void sleepc(clock_t iv);
 static Texture *specline(Array *map, FILE *specfile);
 static int strtexcmp(const char *a, const Texture **b);
@@ -795,8 +799,7 @@ resize(int width, int height, bool fullscreen, int base) {
         SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1);
 
         Uint32 flags = SDL_OPENGL | SDL_RESIZABLE;
-        if(fullscreen)
-                flags |= SDL_FULLSCREEN;
+	flags |= fullscreenflag(fullscreen);
 
         if(!SDL_SetVideoMode(width, height, screen.bpp, flags))
                 return -1;
@@ -861,15 +864,15 @@ setbasevertical(int width, int height) {
 }
 
 int
-setwindowed(int base) {
-	screen.size = &screen.winsize;
-        return resize(screen.winsize.x, screen.winsize.y, false, base);
-}
-
-int
 setfullscreen(int base) {
 	screen.size = &screen.fullsize;
         return resize(screen.fullsize.x, screen.fullsize.y, true, base);
+}
+
+int
+setwindowed(int base) {
+	screen.size = &screen.winsize;
+        return resize(screen.winsize.x, screen.winsize.y, false, base);
 }
 
 void

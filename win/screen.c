@@ -1,36 +1,36 @@
 #include <SDL/SDL_syswm.h>
+#include <stdbool.h>
 
-int
-setwindowed(int base) {
+typedef struct {
+	LONG_PTR attrs;
+	int x, y;
+} Mode;
+
+static bool prev;
+static Mode full = { WS_SYSMENU | WS_POPUP | WS_VISIBLE
+                     | WS_CLIPCHILDREN | WS_CLIPSIBLINGS };
+static Mode win = { WS_OVERLAPPEDWINDOW | WS_VISIBLE };
+
+Uint32
+fullscreenflag(bool fullscreen) {
 	SDL_SysWMinfo inf;
+
 	SDL_VERSION(&inf.version);
-	SDL_GetWMInfo(&inf);
+	if(SDL_GetWMInfo(&inf) != 1)
+		return 0;
 
-	RECT r = {
-		.right = screen.winsize.x,
-		.bottom = screen.winsize.y
-	};
-	SetWindowLongPtr(inf.window, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
-	AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
-	screen.winsize = (Vec2i){r.right - r.left, r.bottom - r.top};
-	r.left = (screen.fullsize.x - screen.winsize.x) / 2;
-	r.top = (screen.fullsize.y - screen.winsize.y) / 2;
-	MoveWindow(inf.window, r.left, r.top, screen.winsize.x, screen.winsize.y, TRUE);
-	screen.size = &screen.winsize;
+	if(!prev && fullscreen) {
+		RECT r;
+		GetWindowRect(inf.window, &r);
+		win.x = r.left;
+		win.y = r.top;
+	}
 
-	return 0;
-}
+	Mode *mode = fullscreen ? &full : &win;
+	SetWindowLongPtr(inf.window, GWL_STYLE, mode->attrs);
+	if(prev != fullscreen)
+		MoveWindow(inf.window, mode->x, mode->y, 0, 0, FALSE);
 
-int
-setfullscreen(int base) {
-	SDL_SysWMinfo inf;
-	SDL_VERSION(&inf.version);
-	SDL_GetWMInfo(&inf);
-
-	SetWindowLongPtr(inf.window, GWL_STYLE, WS_SYSMENU | WS_POPUP
-	                 | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE);
-	MoveWindow(inf.window, 0, 0, screen.fullsize.x, screen.fullsize.y, TRUE);
-	screen.size = &screen.fullsize;
-
+	prev = fullscreen;
 	return 0;
 }
