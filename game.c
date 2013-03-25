@@ -998,8 +998,8 @@ main(int argc, char **argv) {
         };
         
         Vec2 line[] = {
-                { -100, -75 },
-                { 100, -75 }
+                { -400, -75 },
+                { 400, -75 }
 	};
 
         Vec2 cross[] = {
@@ -1009,19 +1009,16 @@ main(int argc, char **argv) {
                 { 5, 5 }
         };
 
-	Tform world = tformidentity;
+	Tform back = tformidentity;
+	back.pos.x = -100;
+	Tform camera = tformidentity;
+
 	Tform angle = tformidentity;
-	Tform walk = tformidentity;
-	coord dist = 0;
+	Vec2 pos = vec2zero;
+	Tform player = tformidentity;
 
         while(running) {
                 beginframe();
-
-		walk.pos.x = -dist;
-		tformsetangle(&angle, input.mouse.screenabs.y * 0.01f);
-		world = TFORMMUL(angle, walk);
-		walk.pos.x = dist;
-
                 if(input.keyboard.pressed[SDLK_ESCAPE])
                         running = false;
 		if(PRESSING_KEY(SDLK_f))
@@ -1029,15 +1026,23 @@ main(int argc, char **argv) {
 		if(PRESSING_KEY(SDLK_w))
 			setwindowed(Diagonal);
                 if(input.keyboard.pressed[SDLK_RIGHT])
-			dist++;
+			pos.x++;
                 if(input.keyboard.pressed[SDLK_LEFT])
-			dist--;
+			pos.x--;
+
+		player = tformidentity;
+		player.pos = pos;
+		tformsetangle(&angle, input.mouse.screenabs.y * 0.01f);
+		player = TFORMMUL(player, angle);
+
+		camera = TFORMMUL(back, TFORMT(tforminv(player)));
+
                 if(PRESSING_BTN(1)) {
                         Object new = {
                                 tformidentity,
                                 {50, 50}
                         };
-                        new.t.pos = TFORMVEC2(TFORMT(tforminv(world)), input.mouse.screenabs);
+                        new.t.pos = TFORMVEC2(TFORMT(tforminv(camera)), input.mouse.screenabs);
                         arraypush(&objects, &new);
                 }
                 beginscene();
@@ -1046,12 +1051,12 @@ main(int argc, char **argv) {
 		batch.texcoords = tex->coords;
                 Object *p = objects.ptr;
                 for(int i = 0; i < objects.nmemb; i++) {
-                        batch.tform = TFORMMUL(world, p[i].t);
+                        batch.tform = TFORMMUL(camera, p[i].t);
                         batch_draw_rect(&p[i].s, 0);
                 }
 
 		batch.texcoords = tex->coords;
-                batch.tform = TFORMMUL(world, ball.t);
+                batch.tform = TFORMMUL(camera, ball.t);
                 batch_draw_rect(&ball.s, 0);
 
 		batch.texcoords = tex->coords;
@@ -1060,11 +1065,11 @@ main(int argc, char **argv) {
                 batch_draw_rect(&mouse.s, 0);
 
                 batch.vertices = line;
-                batch.tform = world;
+                batch.tform = camera;
                 batch_draw_arrays(GL_LINES, 0, LENGTH(line));
 
                 batch.vertices = cross;
-                batch.tform = TFORMMUL(world, walk);
+                batch.tform = TFORMMUL(camera, player);
                 batch_draw_arrays(GL_LINES, 0, LENGTH(cross));
 
                 endscene();
