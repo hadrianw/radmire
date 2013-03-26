@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "contrib/SDL_image.h"
+#include "SDL_image.h"
 
 /* macros */
 typedef double real;
@@ -995,7 +995,7 @@ main(int argc, char **argv) {
         if(init())
                 return -1;
 
-	loadatlas(&texmap, "atlas/target.atlas", "atlas/target.png");
+	loadatlas(&texmap, "../atlas/target.atlas", "../atlas/target.png");
 	Texture *tex = gettex(&texmap, "ball.png");
 	Texture *streettex = gettex(&texmap, "street.png");
 

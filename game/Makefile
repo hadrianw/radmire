@@ -2,7 +2,7 @@ include config.mk
 
 all: game
 
-include contrib/SDL_image.mk
+include ../contrib/SDL_image.mk
 
 SRC = game.c \
       ${SDLIMAGESRC} \

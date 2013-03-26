@@ -3,9 +3,6 @@ include config.mk
 all: atlas
 
 include ../contrib/SDL_image.mk
-SDLIMAGESRC := ${SDLIMAGESRC:%=../%}
-SDLIMAGEOBJ := ${SDLIMAGEOBJ:%=../%}
-SDLIMAGEDEP := ${SDLIMAGEDEP:%=../%}
 
 SRC = atlas.c ../contrib/IMG_savepng.c \
       ${SDLIMAGESRC}
@@ -17,7 +14,6 @@ atlas: ${OBJ}
 
 ${OBJ}: config.mk
 atlas.o: ${SDLIMAGEDEP} ../contrib/IMG_savepng.h
-${SDLIMAGEOBJ}: ${SDLIMAGEDEP}
 ../contrib/IMG_savepng.o: ../contrib/IMG_savepng.h
 
 .c.o:
