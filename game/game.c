@@ -551,10 +551,12 @@ gettex(Array *map, const char *name) {
 		return NULL;
 	Texture *tex = findtex(map, name);
         if(tex)
-                return tex;
+		return NULL;
 
         printf("not found: %s, loading\n", name);
 	tex = loadtexstruct(name);
+	if(!tex)
+		return NULL;
         arraypush(map, &tex);
 	qsort(map->ptr, map->nmemb, map->size,
 	      (int(*)(const void*, const void*))texcmp);
@@ -1006,6 +1008,9 @@ main(int argc, char **argv) {
 	Texture *legstex = gettex(&texmap, "legs.png");
 	Vec2 legssiz = {162 / 8, 494 / 8};
 
+	if(!tex || !streettex || !handstex || !legstex)
+		goto exit;
+
         Object mouse = {
                 tformidentity,
                 { 12, 12 }
@@ -1119,6 +1124,7 @@ main(int argc, char **argv) {
                 endframe();
         }
 
+exit:
         freetexmap(&texmap);
 
         SDL_Quit();
