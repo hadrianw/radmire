@@ -627,6 +627,8 @@ loadatlas(Array *map, const char *spec, const char *image) {
 		return 0;
 
 	unsigned int atlas = loadtex(image);
+	if(!atlas)
+		return 0;
 
 	size_t nprev = map->nmemb;
 	Texture *tex;
