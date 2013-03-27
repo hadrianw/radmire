@@ -14,7 +14,7 @@ PLATFORM = ../stub/screen.c
 #PLATFORM = ../stub/screen.c
 
 # includes and libs
-INCS = 
+INCS = -I../contrib/
 LIBS = -lSDL ${PLATFORMLIBS} ${GLLIBS} -lpng -lz
 
 # flags

@@ -1,5 +1,5 @@
-#include "../contrib/SDL_image.h"
-#include "../contrib/IMG_savepng.h"
+#include "SDL_image.h"
+#include "IMG_savepng.h"
 #include <SDL/SDL_video.h>
 #include <stdarg.h>
 #include <stdbool.h>

@@ -2,11 +2,10 @@
 PLATFORMLIBS = -lm
 
 # Win
-#PLATFORMLIBS = -static -lmingw32
-#PLATFORM = win/SDL_win32_main.c
+#PLATFORMLIBS = -static -lmingw32 -lgdi32 -lwinmm
 
 # includes and libs
-INCS = 
+INCS = -I../contrib/
 LIBS = -lSDL ${PLATFORMLIBS} -lpng -lz
 
 # flags
