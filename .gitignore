@@ -2,6 +2,7 @@
 *.swp
 config.mk
 gmon.out
+*.exe
 atlas/atlas
 game/game
-game/game.exe
+outline/outline
