@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define APX(S, X, Y) ((getpx(S, X, Y) & (S)->format->Amask) > 0)
+
 Uint32
 getpx(SDL_Surface *surf, int x, int y) {
 	int bpp = surf->format->BytesPerPixel;
@@ -97,12 +99,12 @@ main(int argc, char **argv) {
 
 	for(int x = 0; x < dst->w; x++) {
 		for(int y = 0; y < dst->h; y++) {
-			putpx(dst, x, y,
-				(getpx(src, x+1, y) & src->format->Amask) ||
-				(getpx(src, x, y+1) & src->format->Amask) ||
-				(getpx(src, x-1, y) & src->format->Amask) ||
-				(getpx(src, x, y+1) & src->format->Amask)
-				? 0xFFFFFF : src->format->Amask);
+			bool cur = APX(src, x, y);
+			bool edg = cur != APX(src, x+1, y) ||
+			           cur != APX(src, x, y+1) ||
+			           cur != APX(src, x-1, y) ||
+			           cur != APX(src, x, y+1);
+			putpx(dst, x, y, edg ? 0xFF000000 : 0);
 		}
 	}
 	
