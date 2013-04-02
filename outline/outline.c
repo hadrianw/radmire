@@ -65,10 +65,18 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	}
 }
 
+enum {
+	NW, N, NE,
+	 W,     E,
+	SW, S, SE,
+	DIRS
+};
+
 static SDL_Surface *dst;
 static char *dstfname;
 static SDL_Surface *src;
 static char *srcfname;
+static int x, y;
 
 int
 main(int argc, char **argv) {
@@ -97,17 +105,14 @@ main(int argc, char **argv) {
 		goto out_src;
 	}
 
-	for(int x = 0; x < dst->w; x++) {
-		for(int y = 0; y < dst->h; y++) {
-			bool cur = APX(src, x, y);
-			bool edg = cur != APX(src, x+1, y) ||
-			           cur != APX(src, x, y+1) ||
-			           cur != APX(src, x-1, y) ||
-			           cur != APX(src, x, y+1);
-			putpx(dst, x, y, edg ? 0xFF000000 : 0);
+	for(y = 0; y < dst->h; y++) {
+		for(x = 0; x < dst->w; x++) {
+			if(APX(src, x, y))
+				goto endscan;
 		}
 	}
-	
+endscan:
+		
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
