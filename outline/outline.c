@@ -7,6 +7,11 @@
 #include <stdlib.h>
 
 #define APX(S, X, Y) ((getpx(S, X, Y) & (S)->format->Amask) > 0)
+#define LENGTH(X)    (sizeof(X) / sizeof(X)[0])
+
+typedef struct {
+	char x, y;
+} Vec2;
 
 Uint32
 getpx(SDL_Surface *surf, int x, int y) {
@@ -65,11 +70,15 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	}
 }
 
-enum {
-	NW, N, NE,
-	 W,     E,
-	SW, S, SE,
-	DIRS
+static Vec2 dirs[] = {
+	{ -1, -1 }, /* NW */
+	{  0,  1 }, /* N  */
+	{  1,  1 }, /* NE */
+	{  1,  0 }, /*  E */
+	{  1, -1 }, /* SE */
+	{  0, -1 }, /* S  */
+	{ -1, -1 }, /* SW */
+	{ -1,  0 }  /*  W */
 };
 
 static SDL_Surface *dst;
@@ -112,7 +121,14 @@ main(int argc, char **argv) {
 		}
 	}
 endscan:
-		
+	/*
+	bool prev = 0, curr;
+	for(char d = 0; d < LENGTH(dirs); d++) {
+		cur = APX(src, x + xdir[dir], y + ydir[dir]);
+		if(prev != cur)
+			there is some direction to follow
+	}
+	*/
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
