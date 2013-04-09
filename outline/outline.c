@@ -17,6 +17,9 @@ Uint32
 getpx(SDL_Surface *surf, int x, int y) {
 	int bpp = surf->format->BytesPerPixel;
 
+	if(x < 0 || y << 0 || x >= surf->w || y >= surf->h)
+		return 0;
+
 	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
 
 	switch(bpp) {
@@ -71,21 +74,21 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 }
 
 static Vec2 dirs[] = {
-	{ -1, -1 }, /* NW */
 	{  0,  1 }, /* N  */
 	{  1,  1 }, /* NE */
 	{  1,  0 }, /*  E */
 	{  1, -1 }, /* SE */
 	{  0, -1 }, /* S  */
 	{ -1, -1 }, /* SW */
-	{ -1,  0 }  /*  W */
+	{ -1,  0 }, /*  W */
+	{ -1, -1 }  /* NW */
 };
 
 static SDL_Surface *dst;
 static char *dstfname;
 static SDL_Surface *src;
 static char *srcfname;
-static int x, y;
+static int bx, by;
 
 int
 main(int argc, char **argv) {
@@ -114,21 +117,28 @@ main(int argc, char **argv) {
 		goto out_src;
 	}
 
-	for(y = 0; y < dst->h; y++) {
-		for(x = 0; x < dst->w; x++) {
-			if(APX(src, x, y))
+	for(by = 0; by < dst->h; by++) {
+		for(bx = 0; bx < dst->w; bx++) {
+			if(APX(src, bx, by))
 				goto endscan;
 		}
 	}
+
+	char next, off = 0;
+	char x = bx, y = by;
+
 endscan:
-	/*
-	bool prev = 0, curr;
-	for(char d = 0; d < LENGTH(dirs); d++) {
-		cur = APX(src, x + xdir[dir], y + ydir[dir]);
-		if(prev != cur)
-			there is some direction to follow
-	}
-	*/
+	do {
+		for(char d = 0; d < LENGTH(dirs); d++) {
+			next = (off + d) % LENGTH(dirs);
+			if(APX(src, x + dirs[next].x, y + dirs[next].y))
+				break;
+		}
+		x += dirs[next].x;
+		y += dirs[next].y;
+		//putpx(dst, x, y, 0xFFFFFFFF);
+		off = (next - 2) % LENGTH(dirs);
+	} while(x != bx && y != by);
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
