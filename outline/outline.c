@@ -17,7 +17,7 @@ Uint32
 getpx(SDL_Surface *surf, int x, int y) {
 	int bpp = surf->format->BytesPerPixel;
 
-	if(x < 0 || y << 0 || x >= surf->w || y >= surf->h)
+	if(x < 0 || y < 0 || x >= surf->w || y >= surf->h)
 		return 0;
 
 	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
@@ -46,6 +46,9 @@ getpx(SDL_Surface *surf, int x, int y) {
 void
 putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	int bpp = surf->format->BytesPerPixel;
+
+	if(x < 0 || y << 0 || x >= surf->w || y >= surf->h)
+		return;
 
 	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
 
@@ -128,6 +131,9 @@ main(int argc, char **argv) {
 	char x = bx, y = by;
 
 endscan:
+	off = 0;
+	x = bx;
+	y = by;
 	do {
 		for(char d = 0; d < LENGTH(dirs); d++) {
 			next = (off + d) % LENGTH(dirs);
@@ -136,9 +142,10 @@ endscan:
 		}
 		x += dirs[next].x;
 		y += dirs[next].y;
+		printf("%d %d n: %d\n", x, y, next);
 		//putpx(dst, x, y, 0xFFFFFFFF);
 		off = (next - 2) % LENGTH(dirs);
-	} while(x != bx && y != by);
+	} while(x != bx || y != by);
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
