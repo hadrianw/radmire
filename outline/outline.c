@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define APX(S, X, Y) ((getpx(S, X, Y) & (S)->format->Amask) > 0)
+#define APX(S, X, Y) ((getpx(S, X, Y) & 0xFF000000) > 0)
 #define LENGTH(X)    (sizeof(X) / sizeof(X)[0])
 
 typedef struct {
@@ -47,7 +47,7 @@ void
 putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	int bpp = surf->format->BytesPerPixel;
 
-	if(x < 0 || y << 0 || x >= surf->w || y >= surf->h)
+	if(x < 0 || y < 0 || x >= surf->w || y >= surf->h)
 		return;
 
 	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
@@ -77,12 +77,12 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 }
 
 static Vec2 dirs[] = {
-	{  0,  1 }, /* N  */
-	{  1,  1 }, /* NE */
+	{  0, -1 }, /* N  */
+	{  1, -1 }, /* NE */
 	{  1,  0 }, /*  E */
-	{  1, -1 }, /* SE */
-	{  0, -1 }, /* S  */
-	{ -1, -1 }, /* SW */
+	{  1,  1 }, /* SE */
+	{  0,  1 }, /* S  */
+	{ -1,  1 }, /* SW */
 	{ -1,  0 }, /*  W */
 	{ -1, -1 }  /* NW */
 };
@@ -128,7 +128,7 @@ main(int argc, char **argv) {
 	}
 
 	char next, off = 0;
-	char x = bx, y = by;
+	int x = bx, y = by;
 
 endscan:
 	off = 0;
@@ -142,8 +142,7 @@ endscan:
 		}
 		x += dirs[next].x;
 		y += dirs[next].y;
-		printf("%d %d n: %d\n", x, y, next);
-		//putpx(dst, x, y, 0xFFFFFFFF);
+		putpx(dst, x, y, 0xFF000000);
 		off = (next - 2) % LENGTH(dirs);
 	} while(x != bx || y != by);
 
