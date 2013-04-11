@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define APX(S, X, Y) ((getpx(S, X, Y) & 0xFF000000) > 0)
 #define LENGTH(X)    (sizeof(X) / sizeof(X)[0])
+#define ALPHA 0xFF000000
+#define SKIP 0xFFFFFF
+
 
 typedef struct {
 	char x, y;
@@ -91,7 +93,24 @@ static SDL_Surface *dst;
 static char *dstfname;
 static SDL_Surface *src;
 static char *srcfname;
-static int bx, by;
+
+void
+outline(int bx, int by) {
+	char next, off = 0;
+	int x = bx, y = by;
+
+	do {
+		for(char d = 0; d < LENGTH(dirs); d++) {
+			next = (off + d) % LENGTH(dirs);
+			if(getpx(src, x + dirs[next].x, y + dirs[next].y) & ALPHA)
+				break;
+		}
+		x += dirs[next].x;
+		y += dirs[next].y;
+		putpx(dst, x, y, SKIP);
+		off = (next - 2) % LENGTH(dirs);
+	} while(x != bx || y != by);
+}
 
 int
 main(int argc, char **argv) {
@@ -109,42 +128,29 @@ main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	
-        dst = SDL_CreateRGBSurface(SDL_SWSURFACE, src->w, src->h,
-	                           src->format->BitsPerPixel,
-	                           src->format->Rmask,
-	                           src->format->Gmask,
-	                           src->format->Bmask,
-	                           src->format->Amask);
+        dst = SDL_CreateRGBSurface(SDL_SWSURFACE, src->w, src->h, 3,
+	                           0xFF0000, 0x00FF00, 0x0000FF, 0);
+
 	if(!dst) {
 		fputs("outline: couldn't create dst surface\n", stderr);
 		goto out_src;
 	}
 
-	for(by = 0; by < dst->h; by++) {
-		for(bx = 0; bx < dst->w; bx++) {
-			if(APX(src, bx, by))
-				goto endscan;
+	int x, y;
+	bool prev, curr;
+	
+	for(y = 0; y < dst->h; y++) {
+		prev = false;
+		for(x = 0; x < dst->w; x++) {
+			curr = getpx(src, x, y) & ALPHA;
+			if(!prev && curr && getpx(dst, x, y) == 0) {
+				printf("%d %d\n", x, y);
+				outline(x, y);
+			}
+			prev = curr;
 		}
 	}
 
-	char next, off = 0;
-	int x = bx, y = by;
-
-endscan:
-	off = 0;
-	x = bx;
-	y = by;
-	do {
-		for(char d = 0; d < LENGTH(dirs); d++) {
-			next = (off + d) % LENGTH(dirs);
-			if(APX(src, x + dirs[next].x, y + dirs[next].y))
-				break;
-		}
-		x += dirs[next].x;
-		y += dirs[next].y;
-		putpx(dst, x, y, 0xFF000000);
-		off = (next - 2) % LENGTH(dirs);
-	} while(x != bx || y != by);
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
