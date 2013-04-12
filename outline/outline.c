@@ -10,10 +10,28 @@
 #define ALPHA 0xFF000000
 #define SKIP 0xFFFFFF
 
-
 typedef struct {
 	char x, y;
 } Vec2;
+
+static Uint32 getpx(SDL_Surface *surf, int x, int y);
+static void outline(int bx, int by);
+static void putpx(SDL_Surface *surf, int x, int y, Uint32 px);
+
+static Vec2 pxdir[] = {
+	{  0, -1 }, /* N  */
+	{  1, -1 }, /* NE */
+	{  1,  0 }, /*  E */
+	{  1,  1 }, /* SE */
+	{  0,  1 }, /* S  */
+	{ -1,  1 }, /* SW */
+	{ -1,  0 }, /*  W */
+	{ -1, -1 }  /* NW */
+};
+static SDL_Surface *dst;
+static char *dstfname;
+static SDL_Surface *src;
+static char *srcfname;
 
 Uint32
 getpx(SDL_Surface *surf, int x, int y) {
@@ -46,6 +64,29 @@ getpx(SDL_Surface *surf, int x, int y) {
 }
  
 void
+outline(int bx, int by) {
+	int x = bx, y = by;
+	int nx, ny;
+	int next;
+	char off = 0;
+
+	do {
+		for(char d = 0; d < LENGTH(pxdir); d++) {
+			next = (off + d) % LENGTH(pxdir);
+			nx = x + pxdir[next].x;
+			ny = y + pxdir[next].y;
+			if(getpx(src, nx, ny) & ALPHA) {
+				x = nx;
+				y = ny;
+				putpx(dst, x, y, SKIP);
+				off = (next - 2) % LENGTH(pxdir);
+				break;
+			}
+		}
+	} while(x != bx || y != by);
+}
+
+void
 putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	int bpp = surf->format->BytesPerPixel;
 
@@ -76,45 +117,6 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 		*(Uint32*)p = px;
 		break;
 	}
-}
-
-static Vec2 dirs[] = {
-	{  0, -1 }, /* N  */
-	{  1, -1 }, /* NE */
-	{  1,  0 }, /*  E */
-	{  1,  1 }, /* SE */
-	{  0,  1 }, /* S  */
-	{ -1,  1 }, /* SW */
-	{ -1,  0 }, /*  W */
-	{ -1, -1 }  /* NW */
-};
-
-static SDL_Surface *dst;
-static char *dstfname;
-static SDL_Surface *src;
-static char *srcfname;
-
-void
-outline(int bx, int by) {
-	int x = bx, y = by;
-	int nx, ny;
-	int next;
-	char off = 0;
-
-	do {
-		for(char d = 0; d < LENGTH(dirs); d++) {
-			next = (off + d) % LENGTH(dirs);
-			nx = x + dirs[next].x;
-			ny = y + dirs[next].y;
-			if(getpx(src, nx, ny) & ALPHA) {
-				x = nx;
-				y = ny;
-				putpx(dst, x, y, SKIP);
-				off = (next - 2) % LENGTH(dirs);
-				break;
-			}
-		}
-	} while(x != bx || y != by);
 }
 
 int
