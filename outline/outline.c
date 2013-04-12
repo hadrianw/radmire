@@ -96,19 +96,24 @@ static char *srcfname;
 
 void
 outline(int bx, int by) {
-	char next, off = 0;
 	int x = bx, y = by;
+	int nx, ny;
+	int next;
+	char off = 0;
 
 	do {
 		for(char d = 0; d < LENGTH(dirs); d++) {
 			next = (off + d) % LENGTH(dirs);
-			if(getpx(src, x + dirs[next].x, y + dirs[next].y) & ALPHA)
+			nx = x + dirs[next].x;
+			ny = y + dirs[next].y;
+			if(getpx(src, nx, ny) & ALPHA) {
+				x = nx;
+				y = ny;
+				putpx(dst, x, y, SKIP);
+				off = (next - 2) % LENGTH(dirs);
 				break;
+			}
 		}
-		x += dirs[next].x;
-		y += dirs[next].y;
-		putpx(dst, x, y, SKIP);
-		off = (next - 2) % LENGTH(dirs);
 	} while(x != bx || y != by);
 }
 
@@ -128,8 +133,8 @@ main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	
-        dst = SDL_CreateRGBSurface(SDL_SWSURFACE, src->w, src->h, 3,
-	                           0xFF0000, 0x00FF00, 0x0000FF, 0);
+        dst = SDL_CreateRGBSurface(SDL_SWSURFACE, src->w, src->h, 24,
+	                           0x0000FF, 0x00FF00, 0xFF0000, 0);
 
 	if(!dst) {
 		fputs("outline: couldn't create dst surface\n", stderr);
@@ -143,14 +148,11 @@ main(int argc, char **argv) {
 		prev = false;
 		for(x = 0; x < dst->w; x++) {
 			curr = getpx(src, x, y) & ALPHA;
-			if(!prev && curr && getpx(dst, x, y) == 0) {
-				printf("%d %d\n", x, y);
+			if(!prev && curr && getpx(dst, x, y) == 0)
 				outline(x, y);
-			}
 			prev = curr;
 		}
 	}
-
 
 	if(IMG_SavePNG(dstfname, dst, 9)) {
 		fprintf(stderr, "outline: couldn't save image %s\n", dstfname);
