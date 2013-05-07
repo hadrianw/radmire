@@ -202,7 +202,6 @@ static void freetex(Texture *tex);
 static void freetexmap(Array *map);
 static Texture *gettex(Array *map, const char *name);
 static void glinit();
-static int init();
 static int loadatlas(Array *map, const char *spc, const char *img);
 static unsigned int loadtex(const char *path);
 static Texture *loadtexstruct(const char *path);
@@ -214,6 +213,8 @@ static void setbasehorizontal(int width, int height);
 static void setbasenone(int width, int height);
 static void setbasevertical(int width, int height);
 static int setfullscreen(int base);
+static void setupclock(void);
+static void setupformat(void);
 static int setwindowed(int base);
 static void sleepc(clock_t iv);
 static Texture *specline(Array *map, FILE *specfile);
@@ -229,7 +230,7 @@ static Batch batch = { .mode = GL_QUADS };
 static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
 static Input input;
 static Array objects = { .size = sizeof(Object) };
-static bool running = false;
+static bool running = true;
 static Screen screen = {
 	.format = {
 		.alpha = 255
@@ -577,49 +578,6 @@ glinit() {
 }
 
 int
-init() {
-        if(SDL_Init(SDL_INIT_VIDEO) < 0)
-                goto out;
-
-        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        screen.fullsize.x = vi->current_w;
-	screen.fullsize.y = vi->current_h;
-	screen.bpp = vi->vfmt->BitsPerPixel;
-	screen.size = &screen.winsize;
-
-        screen.format.BitsPerPixel = screen.bpp;
-        screen.format.BytesPerPixel = screen.bpp / 8;
-        screen.format.Rshift = screen.bpp / 4 * COLOR_SHIFT(3);
-        screen.format.Gshift = screen.bpp / 4 * COLOR_SHIFT(2);
-        screen.format.Bshift = screen.bpp / 4 * COLOR_SHIFT(1);
-        screen.format.Ashift = screen.bpp / 4 * COLOR_SHIFT(0);
-        screen.format.Rmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Rshift;
-        screen.format.Gmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Gshift;
-        screen.format.Bmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Bshift;
-        screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
-
-        if(resize(1024, 768, false, Diagonal))
-                goto out_sdl;
-
-        SDL_WM_SetCaption("Radmire", NULL);
-        SDL_EnableKeyRepeat(0, 0);
-
-	glinit();
-
-        timer.step = 1 / timer.fps;
-        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
-        timer.prev = clock();
-
-        running = true;
-        return 0;
-
-out_sdl:
-        SDL_Quit();
-out:
-        return -2;
-}
-
-int
 loadatlas(Array *map, const char *spec, const char *image) {
 	if(!map || !spec || !image)
 		return 0;
@@ -818,9 +776,6 @@ resize(int width, int height, bool fullscreen, int base) {
         screen.size->y = height;
         screen.full = fullscreen;
 
-	if(fullscreen)
-		glinit();
-
         glViewport(0, 0, width, height);
  	setbase[base](width, height);
         screen.base = base;
@@ -877,6 +832,33 @@ int
 setfullscreen(int base) {
 	screen.size = &screen.fullsize;
         return resize(screen.fullsize.x, screen.fullsize.y, true, base);
+}
+
+void
+setupclock() {
+        timer.step = 1 / timer.fps;
+        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
+        timer.prev = clock();
+}
+
+void
+setupformat() {
+        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
+        screen.fullsize.x = vi->current_w;
+	screen.fullsize.y = vi->current_h;
+	screen.bpp = vi->vfmt->BitsPerPixel;
+	screen.size = &screen.winsize;
+
+        screen.format.BitsPerPixel = screen.bpp;
+        screen.format.BytesPerPixel = screen.bpp / 8;
+        screen.format.Rshift = screen.bpp / 4 * COLOR_SHIFT(3);
+        screen.format.Gshift = screen.bpp / 4 * COLOR_SHIFT(2);
+        screen.format.Bshift = screen.bpp / 4 * COLOR_SHIFT(1);
+        screen.format.Ashift = screen.bpp / 4 * COLOR_SHIFT(0);
+        screen.format.Rmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Rshift;
+        screen.format.Gmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Gshift;
+        screen.format.Bmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Bshift;
+        screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
 }
 
 int
@@ -996,8 +978,17 @@ topow2(uint32_t v) {
 
 int
 main(int argc, char **argv) {
-        if(init())
-                return -1;
+	int result = EXIT_FAILURE;
+
+        if(SDL_Init(SDL_INIT_VIDEO) < 0)
+                goto out;
+	setupformat();
+        if(resize(1024, 768, false, Diagonal))
+                goto out_sdl;
+        SDL_WM_SetCaption("Radmire", NULL);
+        SDL_EnableKeyRepeat(0, 0);
+	glinit();
+	setupclock();
 
 	loadatlas(&texmap, "../atlas/target.atlas", "../atlas/target.png");
 	Texture *tex = gettex(&texmap, "ball.png");
@@ -1009,7 +1000,7 @@ main(int argc, char **argv) {
 	Vec2 legssiz = {162 / 8, 494 / 8};
 
 	if(!tex || !streettex || !handstex || !legstex)
-		goto exit;
+		goto out_texmap;
 
         Object mouse = {
                 tformidentity,
@@ -1124,10 +1115,12 @@ main(int argc, char **argv) {
                 endframe();
         }
 
-exit:
+	result = EXIT_SUCCESS;
+out_texmap:
         freetexmap(&texmap);
-
+out_sdl:
         SDL_Quit();
-        return 0;
+out:
+        return result;
 }
 
