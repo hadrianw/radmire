@@ -476,7 +476,7 @@ beginframe(void) {
 
 void
 beginscene(void) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 }
@@ -803,12 +803,7 @@ run() {
 	Texture *tex = gettex(&texmap, "ball.png");
 	Texture *streettex = gettex(&texmap, "street.png");
 
-	Texture *handstex = gettex(&texmap, "hands.png");
-	Vec2 handssiz = {287 / 8, 142 / 8};
-	Texture *legstex = gettex(&texmap, "legs.png");
-	Vec2 legssiz = {162 / 8, 494 / 8};
-
-	if(!tex || !streettex || !handstex || !legstex)
+	if(!tex || !streettex)
 		goto out_texmap;
 
         Object mouse = {
@@ -816,30 +811,18 @@ run() {
                 { 12, 12 }
         };
         
-        Object ball = {
+        Object street = {
                 tformidentity,
                 { 400, 250 }
         };
         
-        Vec2 line[] = {
-                { -400, -60 },
-                { 400, -60 }
-	};
-
-        Vec2 cross[] = {
-                {-5,  5},
-                { 5, -5},
-                {-5, -5},
-                { 5,  5},
-
-		{0, 0},
-		{400, 0}
-        };
-
-	Tform back = tformidentity;
-	back.pos.x = -100;
+	Tform offset = tformidentity;
+	offset.pos.x = -100;
+	real scale = 1.0;
 	Tform zoom = tformidentity;
 	Tform camera = tformidentity;
+
+	Vec2 worldabs = vec2zero;
 
 	Tform angle = tformidentity;
 	Vec2 pos = vec2zero;
@@ -867,58 +850,22 @@ run() {
 		tformsetangle(&angle, LIMIT(input.mouse.screenabs.y * 0.02f, -M_PI_2, M_PI_2));
 		player = TFORMMUL(player, angle);
 
-		real scale = LIMIT((screen.right - input.mouse.screenabs.x) * 0.01f, 0.25f, 1.5f);
 		tformsetscale(&zoom, (Vec2){scale, scale});
-		camera = TFORMMUL( back, TFORMMUL(zoom, TFORMT(tforminv(player))) );
+		camera = TFORMMUL( offset, TFORMMUL(zoom, TFORMT(tforminv(player))) );
+		worldabs = TFORMVEC2(TFORMT(tforminv(camera)), input.mouse.screenabs);
 
-                if(PRESSING_BTN(1)) {
-                        Object new = {
-                                tformidentity,
-                                {50, 50}
-                        };
-                        new.t.pos = TFORMVEC2(TFORMT(tforminv(camera)), input.mouse.screenabs);
-                        arraypush(&objects, &new);
-                }
                 beginscene();
 
                 batch_bind_texture(streettex->handle);
 		batch.texcoords = streettex->coords;
-                batch.tform = TFORMMUL(camera, ball.t);
-                batch_draw_rect(&ball.s, 0);
-
-                batch_bind_texture(tex->handle);
-		batch.texcoords = tex->coords;
-                Object *p = objects.ptr;
-                for(int i = 0; i < objects.nmemb; i++) {
-                        batch.tform = TFORMMUL(camera, p[i].t);
-                        batch_draw_rect(&p[i].s, 0);
-                }
-
-                batch_bind_texture(legstex->handle);
-		batch.texcoords = legstex->coords;
-		Tform legst = tformidentity;
-		legst.pos = pos;
-                batch.tform = TFORMMUL(camera, legst);
-		batch_draw_rect(&legssiz, &(Vec2){0.4f, -0.05f});
-
-                batch_bind_texture(handstex->handle);
-		batch.texcoords = handstex->coords;
-                batch.tform = TFORMMUL(camera, player);
-		batch_draw_rect(&handssiz, &(Vec2){0.25f, 0.65f});
+                batch.tform = TFORMMUL(camera, street.t);
+                batch_draw_rect(&street.s, 0);
 
                 batch_bind_texture(tex->handle);
 		batch.texcoords = tex->coords;
                 mouse.t.pos = input.mouse.screenabs;
                 batch.tform = mouse.t;
                 batch_draw_rect(&mouse.s, 0);
-
-                batch.vertices = line;
-                batch.tform = camera;
-                batch_draw_arrays(GL_LINES, 0, LENGTH(line));
-
-                batch.vertices = cross;
-                batch.tform = TFORMMUL(camera, player);
-                batch_draw_arrays(GL_LINES, 0, LENGTH(cross));
 
                 endscene();
                 endframe();
