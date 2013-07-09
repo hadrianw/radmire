@@ -15,6 +15,7 @@ typedef struct {
 } Vec2;
 
 static Uint32 getpx(SDL_Surface *surf, int x, int y);
+static void line(SDL_Surface *surf, int x0, int y0, int x1, int y1, Uint32 px);
 static void outline(int bx, int by);
 static void putpx(SDL_Surface *surf, int x, int y, Uint32 px);
 
@@ -40,7 +41,7 @@ getpx(SDL_Surface *surf, int x, int y) {
 	if(x < 0 || y < 0 || x >= surf->w || y >= surf->h)
 		return 0;
 
-	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
+	Uint8 *p = (Uint8*)surf->pixels + y * surf->pitch + x * bpp;
 
 	switch(bpp) {
 	case 1:
@@ -64,14 +65,38 @@ getpx(SDL_Surface *surf, int x, int y) {
 }
  
 void
+line(SDL_Surface *surf, int x0, int y0, int x1, int y1, Uint32 px) {
+	int dx = abs(x1 - x0);
+	int dy = abs(y1 - y0);
+	int sx = x0 < x1 ? 1 : -1;
+	int sy = y0 < y1 ? 1 : -1; 
+	int err = (dx > dy ? dx : -dy)/2, e2;
+
+	for(;;){
+		putpx(surf, x0, y0, px);
+		if(x0 == x1 && y0 == y1)
+			break;
+		e2 = err;
+		if(e2 > -dx) {
+			err -= dy;
+			x0 += sx;
+		}
+		if(e2 < dy) {
+			err += dx;
+			y0 += sy;
+		}
+	}
+}
+
+void
 outline(int bx, int by) {
 	int x = bx, y = by;
 	int nx, ny;
 	int next;
-	char off = 0;
+	char d, off = 0;
 
 	do {
-		for(char d = 0; d < LENGTH(pxdir); d++) {
+		for(d = 0; d < LENGTH(pxdir); d++) {
 			next = (off + d) % LENGTH(pxdir);
 			nx = x + pxdir[next].x;
 			ny = y + pxdir[next].y;
@@ -93,7 +118,7 @@ putpx(SDL_Surface *surf, int x, int y, Uint32 px) {
 	if(x < 0 || y < 0 || x >= surf->w || y >= surf->h)
 		return;
 
-	Uint8 *p = (Uint8 *)surf->pixels + y * surf->pitch + x * bpp;
+	Uint8 *p = (Uint8*)surf->pixels + y * surf->pitch + x * bpp;
 
 	switch(bpp) {
 	case 1:

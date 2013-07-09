@@ -201,25 +201,28 @@ static SDL_Surface *formatimg(SDL_Surface *src);
 static void freetex(Texture *tex);
 static void freetexmap(Array *map);
 static Texture *gettex(Array *map, const char *name);
-static void glinit();
-static int init();
+static void glinit(void);
 static int loadatlas(Array *map, const char *spc, const char *img);
 static unsigned int loadtex(const char *path);
 static Texture *loadtexstruct(const char *path);
 static unsigned int maketex(SDL_Surface *surface);
 static SDL_Surface *pow2img(SDL_Surface *src);
 static int resize(int width, int height, bool fullscreen, int base);
+static int run(void);
 static void setbasediagonal(int width, int height);
 static void setbasehorizontal(int width, int height);
 static void setbasenone(int width, int height);
 static void setbasevertical(int width, int height);
 static int setfullscreen(int base);
+static void setupclock(void);
+static void setupformat(void);
 static int setwindowed(int base);
 static void sleepc(clock_t iv);
 static Texture *specline(Array *map, FILE *specfile);
 static int strtexcmp(const char *a, const Texture **b);
 static int texcmp(const Texture **a, const Texture **b);
 static Tform tformfromvec2(const Vec2 v);
+static Tform tforminv(Tform t);
 static void tformsetangle(Tform *t, real angle);
 static void tformsetscale(Tform *t, Vec2 v);
 static uint32_t topow2(uint32_t v);
@@ -229,7 +232,7 @@ static Batch batch = { .mode = GL_QUADS };
 static const Color colorwhite = {0xFF, 0xFF, 0xFF, 0xFF};
 static Input input;
 static Array objects = { .size = sizeof(Object) };
-static bool running = false;
+static bool running = true;
 static Screen screen = {
 	.format = {
 		.alpha = 255
@@ -473,7 +476,7 @@ beginframe(void) {
 
 void
 beginscene(void) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 }
@@ -564,7 +567,7 @@ gettex(Array *map, const char *name) {
 }
 
 void
-glinit() {
+glinit(void) {
         glDisable(GL_CULL_FACE);
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
@@ -574,41 +577,6 @@ glinit() {
         glClearColor(0.0f, 0.25f, 0.0f, 0.0f);
         glPointSize(4.0f);
         batch_init();
-}
-
-int
-init() {
-        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
-        screen.fullsize.x = vi->current_w;
-	screen.fullsize.y = vi->current_h;
-	screen.bpp = vi->vfmt->BitsPerPixel;
-	screen.size = &screen.winsize;
-
-        screen.format.BitsPerPixel = screen.bpp;
-        screen.format.BytesPerPixel = screen.bpp / 8;
-        screen.format.Rshift = screen.bpp / 4 * COLOR_SHIFT(3);
-        screen.format.Gshift = screen.bpp / 4 * COLOR_SHIFT(2);
-        screen.format.Bshift = screen.bpp / 4 * COLOR_SHIFT(1);
-        screen.format.Ashift = screen.bpp / 4 * COLOR_SHIFT(0);
-        screen.format.Rmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Rshift;
-        screen.format.Gmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Gshift;
-        screen.format.Bmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Bshift;
-        screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
-
-        if(resize(1024, 768, false, Diagonal))
-		return -1;
-
-        SDL_WM_SetCaption("Radmire", NULL);
-        SDL_EnableKeyRepeat(0, 0);
-
-	glinit();
-
-        timer.step = 1 / timer.fps;
-        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
-        timer.prev = clock();
-
-        running = true;
-        return 0;
 }
 
 int
@@ -810,9 +778,6 @@ resize(int width, int height, bool fullscreen, int base) {
         screen.size->y = height;
         screen.full = fullscreen;
 
-	if(fullscreen)
-		glinit();
-
         glViewport(0, 0, width, height);
  	setbase[base](width, height);
         screen.base = base;
@@ -828,6 +793,88 @@ resize(int width, int height, bool fullscreen, int base) {
         screen.tform.pos.x = screen.left;
         screen.tform.pos.y = screen.top;
         return 0;
+}
+
+int
+run() {
+	int result = EXIT_FAILURE;
+
+	loadatlas(&texmap, "../atlas/target.atlas", "../atlas/target.png");
+	Texture *tex = gettex(&texmap, "ball.png");
+	Texture *streettex = gettex(&texmap, "street.png");
+
+	if(!tex || !streettex)
+		goto out_texmap;
+
+        Object mouse = {
+                tformidentity,
+                { 12, 12 }
+        };
+        
+        Object street = {
+                tformidentity,
+                { 400, 250 }
+        };
+        
+	Tform offset = tformidentity;
+	offset.pos.x = -100;
+	real scale = 1.0;
+	Tform zoom = tformidentity;
+	Tform camera = tformidentity;
+
+	Vec2 worldabs = vec2zero;
+
+	Tform angle = tformidentity;
+	Vec2 pos = vec2zero;
+	Tform player = tformidentity;
+
+        while(running) {
+                beginframe();
+                if(input.keyboard.pressed[SDLK_ESCAPE])
+                        running = false;
+		if(PRESSING_KEY(SDLK_f))
+			setfullscreen(Diagonal);
+		if(input.keyboard.pressed[SDLK_LSHIFT] && PRESSING_KEY(SDLK_f))
+			setwindowed(Diagonal);
+                if(input.keyboard.pressed[SDLK_d] || input.keyboard.pressed[SDLK_RIGHT])
+			pos.x++;
+                if(input.keyboard.pressed[SDLK_a] || input.keyboard.pressed[SDLK_LEFT])
+			pos.x--;
+                if(input.keyboard.pressed[SDLK_w] || input.keyboard.pressed[SDLK_UP])
+			pos.y++;
+                if(input.keyboard.pressed[SDLK_s] || input.keyboard.pressed[SDLK_DOWN])
+			pos.y--;
+
+		player = tformidentity;
+		player.pos = pos;
+		tformsetangle(&angle, LIMIT(input.mouse.screenabs.y * 0.02f, -M_PI_2, M_PI_2));
+		player = TFORMMUL(player, angle);
+
+		tformsetscale(&zoom, (Vec2){scale, scale});
+		camera = TFORMMUL( offset, TFORMMUL(zoom, TFORMT(tforminv(player))) );
+		worldabs = TFORMVEC2(TFORMT(tforminv(camera)), input.mouse.screenabs);
+
+                beginscene();
+
+                batch_bind_texture(streettex->handle);
+		batch.texcoords = streettex->coords;
+                batch.tform = TFORMMUL(camera, street.t);
+                batch_draw_rect(&street.s, 0);
+
+                batch_bind_texture(tex->handle);
+		batch.texcoords = tex->coords;
+                mouse.t.pos = input.mouse.screenabs;
+                batch.tform = mouse.t;
+                batch_draw_rect(&mouse.s, 0);
+
+                endscene();
+                endframe();
+        }
+
+	result = EXIT_SUCCESS;
+out_texmap:
+        freetexmap(&texmap);
+	return result;
 }
 
 void
@@ -869,6 +916,33 @@ int
 setfullscreen(int base) {
 	screen.size = &screen.fullsize;
         return resize(screen.fullsize.x, screen.fullsize.y, true, base);
+}
+
+void
+setupclock(void) {
+        timer.step = 1 / timer.fps;
+        timer.clockstep = CLOCKS_PER_SEC / timer.fps;
+        timer.prev = clock();
+}
+
+void
+setupformat(void) {
+        const SDL_VideoInfo *vi = SDL_GetVideoInfo();
+        screen.fullsize.x = vi->current_w;
+	screen.fullsize.y = vi->current_h;
+	screen.bpp = vi->vfmt->BitsPerPixel;
+	screen.size = &screen.winsize;
+
+        screen.format.BitsPerPixel = screen.bpp;
+        screen.format.BytesPerPixel = screen.bpp / 8;
+        screen.format.Rshift = screen.bpp / 4 * COLOR_SHIFT(3);
+        screen.format.Gshift = screen.bpp / 4 * COLOR_SHIFT(2);
+        screen.format.Bshift = screen.bpp / 4 * COLOR_SHIFT(1);
+        screen.format.Ashift = screen.bpp / 4 * COLOR_SHIFT(0);
+        screen.format.Rmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Rshift;
+        screen.format.Gmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Gshift;
+        screen.format.Bmask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Bshift;
+        screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
 }
 
 int
@@ -988,144 +1062,23 @@ topow2(uint32_t v) {
 
 int
 main(int argc, char **argv) {
-	int exitcode = EXIT_FAILURE;
+	int result = EXIT_FAILURE;
 
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
-		return exitcode;
+                goto out;
+	setupformat();
+        if(resize(1024, 768, false, Diagonal))
+                goto out_sdl;
+        SDL_WM_SetCaption("Radmire", NULL);
+        SDL_EnableKeyRepeat(0, 0);
+	glinit();
+	setupclock();
 
-        if(init())
-		goto exit_sdl;
+	result = run();
 
-	loadatlas(&texmap, "../atlas/target.atlas", "../atlas/target.png");
-	Texture *tex = gettex(&texmap, "ball.png");
-	Texture *streettex = gettex(&texmap, "street.png");
-
-	Texture *handstex = gettex(&texmap, "hands.png");
-	Vec2 handssiz = {287 / 8, 142 / 8};
-	Texture *legstex = gettex(&texmap, "legs.png");
-	Vec2 legssiz = {162 / 8, 494 / 8};
-
-	if(!tex || !streettex || !handstex || !legstex)
-		goto exit;
-
-        Object mouse = {
-                tformidentity,
-                { 12, 12 }
-        };
-        
-        Object ball = {
-                tformidentity,
-                { 400, 250 }
-        };
-        
-        Vec2 line[] = {
-                { -400, -60 },
-                { 400, -60 }
-	};
-
-        Vec2 cross[] = {
-                {-5,  5},
-                { 5, -5},
-                {-5, -5},
-                { 5,  5},
-
-		{0, 0},
-		{400, 0}
-        };
-
-	Tform back = tformidentity;
-	back.pos.x = -100;
-	Tform zoom = tformidentity;
-	Tform camera = tformidentity;
-
-	Tform angle = tformidentity;
-	Vec2 pos = vec2zero;
-	Tform player = tformidentity;
-
-        while(running) {
-                beginframe();
-                if(input.keyboard.pressed[SDLK_ESCAPE])
-                        running = false;
-		if(PRESSING_KEY(SDLK_f))
-			setfullscreen(Diagonal);
-		if(input.keyboard.pressed[SDLK_LSHIFT] && PRESSING_KEY(SDLK_f))
-			setwindowed(Diagonal);
-                if(input.keyboard.pressed[SDLK_d] || input.keyboard.pressed[SDLK_RIGHT])
-			pos.x++;
-                if(input.keyboard.pressed[SDLK_a] || input.keyboard.pressed[SDLK_LEFT])
-			pos.x--;
-                if(input.keyboard.pressed[SDLK_w] || input.keyboard.pressed[SDLK_UP])
-			pos.y++;
-                if(input.keyboard.pressed[SDLK_s] || input.keyboard.pressed[SDLK_DOWN])
-			pos.y--;
-
-		player = tformidentity;
-		player.pos = pos;
-		tformsetangle(&angle, LIMIT(input.mouse.screenabs.y * 0.02f, -M_PI_2, M_PI_2));
-		player = TFORMMUL(player, angle);
-
-		real scale = LIMIT((screen.right - input.mouse.screenabs.x) * 0.01f, 0.25f, 1.5f);
-		tformsetscale(&zoom, (Vec2){scale, scale});
-		camera = TFORMMUL( back, TFORMMUL(zoom, TFORMT(tforminv(player))) );
-
-                if(PRESSING_BTN(1)) {
-                        Object new = {
-                                tformidentity,
-                                {50, 50}
-                        };
-                        new.t.pos = TFORMVEC2(TFORMT(tforminv(camera)), input.mouse.screenabs);
-                        arraypush(&objects, &new);
-                }
-                beginscene();
-
-                batch_bind_texture(streettex->handle);
-		batch.texcoords = streettex->coords;
-                batch.tform = TFORMMUL(camera, ball.t);
-                batch_draw_rect(&ball.s, 0);
-
-                batch_bind_texture(tex->handle);
-		batch.texcoords = tex->coords;
-                Object *p = objects.ptr;
-                for(int i = 0; i < objects.nmemb; i++) {
-                        batch.tform = TFORMMUL(camera, p[i].t);
-                        batch_draw_rect(&p[i].s, 0);
-                }
-
-                batch_bind_texture(legstex->handle);
-		batch.texcoords = legstex->coords;
-		Tform legst = tformidentity;
-		legst.pos = pos;
-                batch.tform = TFORMMUL(camera, legst);
-		batch_draw_rect(&legssiz, &(Vec2){0.4f, -0.05f});
-
-                batch_bind_texture(handstex->handle);
-		batch.texcoords = handstex->coords;
-                batch.tform = TFORMMUL(camera, player);
-		batch_draw_rect(&handssiz, &(Vec2){0.25f, 0.65f});
-
-                batch_bind_texture(tex->handle);
-		batch.texcoords = tex->coords;
-                mouse.t.pos = input.mouse.screenabs;
-                batch.tform = mouse.t;
-                batch_draw_rect(&mouse.s, 0);
-
-                batch.vertices = line;
-                batch.tform = camera;
-                batch_draw_arrays(GL_LINES, 0, LENGTH(line));
-
-                batch.vertices = cross;
-                batch.tform = TFORMMUL(camera, player);
-                batch_draw_arrays(GL_LINES, 0, LENGTH(cross));
-
-                endscene();
-                endframe();
-        }
-
-	exitcode = EXIT_SUCCESS;
-exit:
-        freetexmap(&texmap);
-exit_sdl:
+out_sdl:
         SDL_Quit();
-        return exitcode;
+out:
+        return result;
 }
 
