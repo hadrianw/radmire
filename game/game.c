@@ -578,9 +578,6 @@ glinit() {
 
 int
 init() {
-        if(SDL_Init(SDL_INIT_VIDEO) < 0)
-                goto out;
-
         const SDL_VideoInfo *vi = SDL_GetVideoInfo();
         screen.fullsize.x = vi->current_w;
 	screen.fullsize.y = vi->current_h;
@@ -599,7 +596,7 @@ init() {
         screen.format.Amask = ((1 <<  screen.bpp / 4) - 1) << screen.format.Ashift;
 
         if(resize(1024, 768, false, Diagonal))
-                goto out_sdl;
+		return -1;
 
         SDL_WM_SetCaption("Radmire", NULL);
         SDL_EnableKeyRepeat(0, 0);
@@ -612,11 +609,6 @@ init() {
 
         running = true;
         return 0;
-
-out_sdl:
-        SDL_Quit();
-out:
-        return -2;
 }
 
 int
@@ -996,8 +988,13 @@ topow2(uint32_t v) {
 
 int
 main(int argc, char **argv) {
+	int exitcode = EXIT_FAILURE;
+
+        if(SDL_Init(SDL_INIT_VIDEO) < 0)
+		return exitcode;
+
         if(init())
-                return -1;
+		goto exit_sdl;
 
 	loadatlas(&texmap, "../atlas/target.atlas", "../atlas/target.png");
 	Texture *tex = gettex(&texmap, "ball.png");
@@ -1124,10 +1121,11 @@ main(int argc, char **argv) {
                 endframe();
         }
 
+	exitcode = EXIT_SUCCESS;
 exit:
         freetexmap(&texmap);
-
+exit_sdl:
         SDL_Quit();
-        return 0;
+        return exitcode;
 }
 
