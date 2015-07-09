@@ -1,0 +1,10 @@
+radmire
+-------
+
+2d shooter game and tools.
+
+tools
+-----
+
+- atlas - atlas generation
+- outline - mesh generation from sprites
